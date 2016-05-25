@@ -103,11 +103,34 @@ def maybe_download_and_extract():
 
 def main(_):
   import glob
+  import argparse
+
+  parser = argparse.ArgumentParser(description='Extract image features using Inception model.')
+  parser.add_argument('--image_dir',
+                      dest='image_dir',
+                      type=str,
+                      help='Directory with input images')
+  parser.add_argument('--output_fname',
+                      dest='output_fname',
+                      default='image_features.hdf5',
+                      type=str,
+                      help='Output hd5f filename')
+  parser.add_argument('--working_dir',
+                      dest='working_dir',
+                      default='/tmp',
+                      type=str,
+                      help='Working directory for hdf5 file creation')
+  args = parser.parse_args()
+
+  # Download Inception weights if not already present and extract for use
   maybe_download_and_extract()
-  image_filename_list = glob.glob('/local_data/train2014/*')[:100]
+  # Get image files from directory
+  image_filename_list = glob.glob(os.path.join(args.image_dir, '*'))
   image_names_only_filename_list = [os.path.basename(fname) for fname in image_filename_list]
+  # TODO: Maybe this should batch in some way for large jobs?
   features = run_inference_on_image(image_filename_list)
-  save_hdf5('/tmp', '/local_data/feats.hdf5', features, image_names_only_filename_list)
+  # Save computed features to file
+  save_hdf5(args.working_dir, args.output_fname, features, image_names_only_filename_list)
 
 
 if __name__ == '__main__':
