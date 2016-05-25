@@ -7,6 +7,10 @@ build: depends
 attalos-bash: depends
 	docker run -it l41-caffe-keras-tf /bin/bash
 
+notebook: depends
+	docker build -t l41-attalos-notebook -f Dockerfile.notebook .
+	docker run -it l41-attalos-notebook ipython notebook --ip='*' --no-browser
+
 depends:
 	@echo
 	@echo "checking dependencies"
