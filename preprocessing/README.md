@@ -1,9 +1,10 @@
 # MSCOCO
 
 # Assumptions:
-1) Make has already been run creating the docker containers
-2) The MSCOCO data (http://msvocds.blob.core.windows.net/coco2014/train2014.zip) has been downloaded
-..* The data should be unzipped such that your folder structure looks like /path/to/data/train2014
+1. Make has already been run creating the docker containers
+2. The MSCOCO data (http://msvocds.blob.core.windows.net/coco2014/train2014.zip) has been downloaded
+  * The data should be unzipped such that your folder structure looks like /path/to/data/train2014
+
 
 
 Generate Inception v3 Features
