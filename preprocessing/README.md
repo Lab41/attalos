@@ -24,10 +24,6 @@ docker run -it\
     --volume $PWD:/image_extract \
     lab41/l41-caffe-keras-tf /bin/bash
 
-# In Container
-pip uninstall dask
-# Select y when prompted
-
 # Run script creating image features
 # Suppress deprecation warning since it occurs once per image per batch normalization in the inception graph (aka a lot)
 python /image_extract/extract_inception_features.py --image_dir /local_data/train2014 --output_fname /local_data/mscoco_train2014.hdf5 | grep -v "deprecated"
