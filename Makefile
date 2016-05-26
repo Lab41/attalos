@@ -9,7 +9,7 @@ attalos-bash: depends
 
 notebook: depends
 	docker build -t l41-attalos-notebook -f Dockerfile.notebook .
-	docker run -d -p 8888:8888 -v /data:/data -v ~/:/work -it l41-attalos-notebook ipython notebook --ip='*' --no-browser
+	docker run -d -p 8888:8888 -v /data:/data -v ~/:/work -it l41-attalos-notebook /bootstrap.sh
 
 depends:
 	@echo

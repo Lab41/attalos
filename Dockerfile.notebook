@@ -2,5 +2,7 @@ FROM l41-caffe-keras-tf
 
 EXPOSE 8888
 
+ADD bootstrap.sh /
 WORKDIR /
+RUN chmod a+x /bootstrap.sh
 CMD ["jupyter", "notebook", "--no-browser", "--ip='*'"]
