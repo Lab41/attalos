@@ -2,4 +2,5 @@ FROM l41-caffe-keras-tf
 
 EXPOSE 8888
 
+WORKDIR /
 CMD ["jupyter", "notebook", "--no-browser", "--ip='*'"]
