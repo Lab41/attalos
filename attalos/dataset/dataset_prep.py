@@ -10,6 +10,13 @@ from abc import abstractmethod
 
 RecordMetadata = namedtuple('ParserMetadata', ['id', 'image_name', 'tags', 'captions'])
 
+
+class SplitType:
+    TRAIN = 1
+    TEST = 2
+    VAL = 3
+
+
 class DatasetPrep(object):
     """ A base class for attalos data preprocessing"""
     __metaclass__ = ABCMeta
