@@ -15,6 +15,14 @@ TRAIN_IMAGE_2014_URL = 'http://msvocds.blob.core.windows.net/coco2014/train2014.
 
 class MSCOCODatasetPrep(DatasetPrep):
     def __init__(self, dataset_directory):
+        """
+        Initialize MS COCO specific dataset prep iterator
+        Args:
+            dataset_directory: Directory to store image files in
+
+        Returns:
+
+        """
         super(MSCOCODatasetPrep, self).__init__('MS COCO')
         self.dataset_directory = dataset_directory
         self.instances_filename = self.get_candidate_filename(TRAIN_VAL_INSTANCES_2014_URL)
@@ -24,11 +32,21 @@ class MSCOCODatasetPrep(DatasetPrep):
         self.item_info = self.load_metadata()
 
     def download_dataset(self):
+        """
+        Downloads the dataset if it's not already present in the download directory
+        Returns:
+
+        """
         self.download_if_not_present(self.instances_filename, TRAIN_VAL_INSTANCES_2014_URL)
         self.download_if_not_present(self.caption_filename, TRAIN_VAL_IMAGE_CAPTIONS_2014_URL)
         self.image_filename = self.get_candidate_filename(TRAIN_IMAGE_2014_URL)
 
     def load_metadata(self):
+        """
+        Load the MS COCO dataset to allow for efficient iteration
+        Returns:
+
+        """
         with zipfile.ZipFile(self.caption_filename) as input_file:
             item_info = {}
             train_captions = input_file.open('annotations/captions_train2014.json')
@@ -60,13 +78,21 @@ class MSCOCODatasetPrep(DatasetPrep):
             key: ID who's metadata we'd like to extract
 
         Returns:
-            ParserMetadata: Returns ParserMetadata object containing metadata about item
+            RecordMetadata: Returns ParserMetadata object containing metadata about item
         """
         item = self.item_info[key]
         return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
 
 
     def extract_image_by_key(self, key):
+        """
+        Return an image based on the input key
+        Args:
+            key: ID of the file we'd like to extract
+
+        Returns:
+            Image Blob: Bytes of the image associated with the input ID
+        """
         key_info = key.get_key(key)
         with zipfile.ZipFile(self.image_filename) as input_file:
             train_captions = input_file.open('train2014/%s'%key_info.image_name)
@@ -75,11 +101,25 @@ class MSCOCODatasetPrep(DatasetPrep):
 
 
     def extract_image_to_location(self, key, desired_file_path):
+        """
+        Write image based on the input key to the desired location
+        Args:
+            key: ID of the file we'd like to extract
+            desired_file_path: Output filename that we should write the file to
+
+        Returns:
+
+        """
         fOut = open(desired_file_path, 'wb')
         fOut.write(self.extract_image_by_key(key))
         fOut.close()
 
     def __next__(self):
+        """
+        Iterator over the dataset.
+        Returns:
+            RecordMetadata: Information about the next key
+        """
         for key in sorted(self.list_keys()):
             return self.get_key(key)
 
@@ -87,9 +127,10 @@ class MSCOCODatasetPrep(DatasetPrep):
 
     def get_candidate_filename(self, url):
         """
-        Extract the filename from a URL
+        Extract the filename the file pointed at by the URL would have if
+        it is already present on the file system
         Args:
-            url:
+            url: URL to download the file from
 
         Returns:
 
@@ -99,6 +140,11 @@ class MSCOCODatasetPrep(DatasetPrep):
         return full_filename
 
     def list_keys(self):
+        """
+        List all keys in the dataset
+        Returns:
+
+        """
         return self.item_info.keys()
 
 
