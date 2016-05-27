@@ -27,4 +27,4 @@ docker run -it\
 # Run script creating image features
 # Suppress deprecation warning since it occurs once per image per batch normalization in the inception graph (aka a lot)
 cd /attalos
-PYTHON_PATH=$PYTHON_PATH:/attalos python /image_extract/extract_inception_features.py --image_dir /local_data/train2014 --output_fname /local_data/mscoco_train2014.hdf5 2>&1| grep -v "deprecated"
+PYTHON_PATH=$PYTHON_PATH:/attalos python /image_extract/extract_inception_features.py --image_dir /local_data/mscoco --output_fname /local_data/mscoco_train2014.hdf5 2>&1| grep -v "deprecated"
