@@ -22,8 +22,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         Returns:
 
         """
-        super(MSCOCODatasetPrep, self).__init__('MS COCO')
-        self.dataset_directory = dataset_directory
+        super(MSCOCODatasetPrep, self).__init__('MS COCO', dataset_directory)
         if split.lower() == 'train':
             self.split = SplitType.TRAIN
         elif split.lower() == 'test':
