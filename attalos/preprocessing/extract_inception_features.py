@@ -44,23 +44,28 @@ def create_graph():
     graph_def.ParseFromString(f.read())
     _ = tf.import_graph_def(graph_def, name='')
 
-def run_inference_on_image(image_list):
+def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
   """Runs inference on an image.
   Args:
-    image: Image file name.
+    dataset (DatasetPrep): Dataset
+    tmp_dir (str): Directory to store images temporarily
   Returns:
     Nothing
   """
   # Creates graph from saved GraphDef.
   create_graph()
-  features = np.zeros((len(image_list), 2048), dtype=np.float16)
+  image_keys = dataset.list_keys()
+  features = np.zeros((len(image_keys), 2048), dtype=np.float16)
   with tf.Session() as sess:
-    for ind, image in enumerate(image_list):
+    for ind, img_record in enumerate(dataset):
         if ind % 1000 == 0:
-            print ('Complted %d of %d'%(ind, len(image_list)))
-        if not tf.gfile.Exists(image):
-            tf.logging.fatal('File does not exist %s', image)
-        image_data = tf.gfile.FastGFile(image, 'rb').read()
+            print ('Complted %d of %d'%(ind, len(image_keys)))
+
+        new_fname = os.path.join(tmp_dir, os.path.basename(img_record.image_name))
+        dataset.extract_image_to_location(img_record.id, new_fname)
+        if not tf.gfile.Exists(new_fname):
+            tf.logging.fatal('File does not exist %s', new_fname)
+        image_data = tf.gfile.FastGFile(new_fname, 'rb').read()
         pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
         predictions = sess.run(pool_3_tensor,
                                {'DecodeJpeg/contents:0': image_data})
@@ -102,12 +107,12 @@ def maybe_download_and_extract():
   tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
 def main(_):
-  import glob
   import argparse
+  from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
 
   parser = argparse.ArgumentParser(description='Extract image features using Inception model.')
-  parser.add_argument('--image_dir',
-                      dest='image_dir',
+  parser.add_argument('--dataset_dir',
+                      dest='dataset_dir',
                       type=str,
                       help='Directory with input images')
   parser.add_argument('--output_fname',
@@ -124,11 +129,13 @@ def main(_):
 
   # Download Inception weights if not already present and extract for use
   maybe_download_and_extract()
-  # Get image files from directory
-  image_filename_list = glob.glob(os.path.join(args.image_dir, '*'))
-  image_names_only_filename_list = [os.path.basename(fname) for fname in image_filename_list]
+
+
+  dataset_prep = MSCOCODatasetPrep(args.dataset_dir)
   # TODO: Maybe this should batch in some way for large jobs?
-  features = run_inference_on_image(image_filename_list)
+  features = run_inference_on_dataset(dataset_prep)
+  image_names_only_filename_list = [img_record.image_name for img_record in dataset_prep]
+
   # Save computed features to file
   save_hdf5(args.working_dir, args.output_fname, features, image_names_only_filename_list)
 
