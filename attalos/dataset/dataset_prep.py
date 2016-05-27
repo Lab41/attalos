@@ -90,13 +90,14 @@ class DatasetPrep(object):
         """
         pass
 
+    @abstractmethod
     def list_keys(self):
         """
 
         Returns:
             keys: The set of keys in this dataset
         """
-        return self.dataset_keys()
+        pass
 
     @staticmethod
     def download_if_not_present(candidate_filename, url):
