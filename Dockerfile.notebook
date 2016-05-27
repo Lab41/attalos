@@ -2,6 +2,7 @@ FROM l41-caffe-keras-tf
 
 EXPOSE 8888
 
+RUN pip install --upgrade matplotlib
 ADD bootstrap.sh /
 WORKDIR /
 RUN chmod a+x /bootstrap.sh
