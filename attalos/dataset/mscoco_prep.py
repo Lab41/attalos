@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
 import json
 import zipfile
 from collections import defaultdict
@@ -145,20 +144,6 @@ class MSCOCODatasetPrep(DatasetPrep):
 
         raise StopIteration()
 
-    def get_candidate_filename(self, url):
-        """
-        Extract the filename the file pointed at by the URL would have if
-        it is already present on the file system
-        Args:
-            url: URL to download the file from
-
-        Returns:
-
-        """
-        filename = os.path.basename(url)
-        full_filename = os.path.join(self.dataset_directory, filename)
-        return full_filename
-
     def list_keys(self):
         """
         List all keys in the dataset
@@ -166,5 +151,3 @@ class MSCOCODatasetPrep(DatasetPrep):
 
         """
         return self.item_info.keys()
-
-
