@@ -4,7 +4,7 @@ from __future__ import print_function
 
 import os
 import urllib.request
-from collection import namedtuple
+from collections import namedtuple
 from abc import ABCMeta
 from abc import abstractmethod
 
