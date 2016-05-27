@@ -96,7 +96,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         return full_filename
 
     def list_keys(self):
-        reutrn self.item_info.keys()
+        return self.item_info.keys()
 
 
 
