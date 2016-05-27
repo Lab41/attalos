@@ -106,6 +106,20 @@ def maybe_download_and_extract():
     print('Succesfully downloaded', filename, statinfo.st_size, 'bytes.')
   tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
+
+def process_dataset(dataset_prep, output_fname, working_dir='/tmp'):
+  # Download Inception weights if not already present and extract for use
+  maybe_download_and_extract()
+
+  # Extract image features using inception network
+  # TODO: Maybe this should batch in some way for large jobs?
+  features = run_inference_on_dataset(dataset_prep)
+
+  # Save computed features to file
+  image_names_only_filename_list = [img_record.image_name for img_record in dataset_prep]
+  save_hdf5(working_dir, output_fname, features, image_names_only_filename_list)
+
+
 def main(_):
   import argparse
   from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
@@ -127,17 +141,13 @@ def main(_):
                       help='Working directory for hdf5 file creation')
   args = parser.parse_args()
 
-  # Download Inception weights if not already present and extract for use
-  maybe_download_and_extract()
-
 
   dataset_prep = MSCOCODatasetPrep(args.dataset_dir)
-  # TODO: Maybe this should batch in some way for large jobs?
-  features = run_inference_on_dataset(dataset_prep)
-  image_names_only_filename_list = [img_record.image_name for img_record in dataset_prep]
+  process_dataset(dataset_prep, args.output_fname, working_dir=args.working_dir)
 
-  # Save computed features to file
-  save_hdf5(args.working_dir, args.output_fname, features, image_names_only_filename_list)
+
+
+
 
 
 if __name__ == '__main__':
