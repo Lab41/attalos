@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import urllib.request
+import urllib
 from collections import namedtuple
 from abc import ABCMeta
 from abc import abstractmethod
@@ -99,4 +99,4 @@ class DatasetPrep(object):
             # Taken from: http://stackoverflow.com/questions/7243750/download-file-from-web-in-python-3
             # Download the file from `url` and save it locally under `file_name`:
             print('Downloading %s'%os.path.basename(candidate_filename))
-            urllib.request.urlretrieve(url, candidate_filename)
+            urllib.urlretrieve(url, candidate_filename)
