@@ -38,7 +38,7 @@ class MSCOCODatasetPrep(DatasetPrep):
             raise NotImplementedError('Split type not yet implemented')
         self.instances_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
         self.caption_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
-        self.image_filename = self.get_candidate_filename(TRAIN_IMAGES_URL)
+        self.image_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
         self.download_dataset()
         self.item_info = self.load_metadata()
         self.image_file_handle = None
@@ -51,7 +51,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         """
         self.download_if_not_present(self.instances_filename, VISUAL_GENOME_RELATIONSHIPS)
         self.download_if_not_present(self.caption_filename, VISUAL_GENOME_METADATA)
-        self.image_filename = self.get_candidate_filename(TRAIN_IMAGES_URL)
+        self.image_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
 
     def load_metadata(self):
         """
@@ -78,7 +78,8 @@ class MSCOCODatasetPrep(DatasetPrep):
             RecordMetadata: Returns ParserMetadata object containing metadata about item
         """
         item = self.item_info[key]
-        return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
+        # return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
+	return vg.GetImageIdsInRange(startIndex=0, endIndex=2)
 
     def extract_image_by_key(self, key):
         """
