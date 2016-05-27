@@ -6,7 +6,7 @@ import os
 import json
 import zipfile
 from collections import defaultdict
-from dataset_prep import DatasetPrep, RecordMetadata
+from dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 
 TRAIN_VAL_INSTANCES_2014_URL = 'http://msvocds.blob.core.windows.net/annotations-1-0-3/instances_train-val2014.zip'
@@ -14,17 +14,25 @@ TRAIN_VAL_IMAGE_CAPTIONS_2014_URL = 'http://msvocds.blob.core.windows.net/annota
 TRAIN_IMAGE_2014_URL = 'http://msvocds.blob.core.windows.net/coco2014/train2014.zip'
 
 class MSCOCODatasetPrep(DatasetPrep):
-    def __init__(self, dataset_directory):
+    def __init__(self, dataset_directory, split='train'):
         """
         Initialize MS COCO specific dataset prep iterator
         Args:
             dataset_directory: Directory to store image files in
-
+            split: Train/Val split is allowed
         Returns:
 
         """
         super(MSCOCODatasetPrep, self).__init__('MS COCO')
         self.dataset_directory = dataset_directory
+        if split.lower() == 'train':
+            self.split = SplitType.TRAIN
+        elif split.lower() == 'test':
+            raise NotImplementedError('Split type not yet implemented')
+        elif split.lower() == 'val':
+            raise NotImplementedError('Split type not yet implemented')
+        else:
+            raise NotImplementedError('Split type not yet implemented')
         self.instances_filename = self.get_candidate_filename(TRAIN_VAL_INSTANCES_2014_URL)
         self.caption_filename = self.get_candidate_filename(TRAIN_VAL_IMAGE_CAPTIONS_2014_URL)
         self.image_filename = self.get_candidate_filename(TRAIN_IMAGE_2014_URL)
@@ -47,9 +55,17 @@ class MSCOCODatasetPrep(DatasetPrep):
         Returns:
 
         """
+        if self.split == SplitType.TRAIN:
+            split_name = 'train'
+        elif self.split == SplitType.VAL:
+            split_name = 'val'
+        else:
+            raise NotImplementedError('Split type not yet implemented')
+
+        caption_json_fname = 'annotations/captions_%s2014.json'%split_name
         with zipfile.ZipFile(self.caption_filename) as input_file:
             item_info = {}
-            train_captions = input_file.open('annotations/captions_train2014.json')
+            train_captions = input_file.open(caption_json_fname)
             caption_info = json.loads(train_captions.read().decode("ascii"))
             for caption in caption_info['images']:
                 item_info[caption['id']] = {'fname': caption['file_name'],
@@ -60,8 +76,10 @@ class MSCOCODatasetPrep(DatasetPrep):
                 item_info[caption['image_id']]['captions'].append(caption['caption'])
 
             del caption_info
+
+        instance_json_fname = 'annotations/instances_%s2014.json'%split_name
         with zipfile.ZipFile(self.instances_filename) as input_file:
-            train_captions = input_file.open('annotations/instances_train2014.json')
+            train_captions = input_file.open(instance_json_fname)
             caption_info = json.loads(train_captions.read().decode("ascii"))
             image_tags = defaultdict(list)
             for annotation in caption_info['annotations']:
