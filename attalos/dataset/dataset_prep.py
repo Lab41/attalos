@@ -22,7 +22,7 @@ class DatasetPrep(object):
     """ A base class for attalos data preprocessing"""
     __metaclass__ = ABCMeta
 
-    def __init__(self, dataset_name):
+    def __init__(self, dataset_name, dataset_directory):
         """
 
         Args:
@@ -32,13 +32,12 @@ class DatasetPrep(object):
 
         """
         self.dataset_name = dataset_name
-
+        self.dataset_directory = dataset_directory
 
     @abstractmethod
-    def download_dataset(self, data_directory):
+    def download_dataset(self):
         """
         Args:
-            data_directory: Directory to put downloaded dataaset into
 
         Returns:
         """
@@ -110,7 +109,6 @@ class DatasetPrep(object):
             print('Downloading %s'%os.path.basename(candidate_filename))
             urllib.request.urlretrieve(url, candidate_filename)
 
-    @staticmethod
     def get_candidate_filename(self, url):
         """
         Extract the filename the file pointed at by the URL would have if
