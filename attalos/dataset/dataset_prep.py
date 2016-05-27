@@ -27,7 +27,7 @@ class DatasetPrep(object):
 
         Args:
             dataset_name: The name of the dataset
-
+            dataset_directory: Directory to put downloaded dataaset into
         Returns:
 
         """
