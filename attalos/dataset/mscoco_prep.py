@@ -38,6 +38,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         self.image_filename = self.get_candidate_filename(TRAIN_IMAGE_2014_URL)
         self.download_dataset()
         self.item_info = self.load_metadata()
+        self.image_file_handle = None
 
     def download_dataset(self):
         """
@@ -102,7 +103,6 @@ class MSCOCODatasetPrep(DatasetPrep):
         item = self.item_info[key]
         return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
 
-
     def extract_image_by_key(self, key):
         """
         Return an image based on the input key
@@ -113,11 +113,12 @@ class MSCOCODatasetPrep(DatasetPrep):
             Image Blob: Bytes of the image associated with the input ID
         """
         key_info = self.get_key(key)
-        with zipfile.ZipFile(self.image_filename) as input_file:
-            train_captions = input_file.open('train2014/%s'%key_info.image_name)
-            return train_captions.read()
-        raise FileNotFoundError('Unable to extract %s'%key_info.image_name)
 
+        if self.image_file_handle is None:
+            self.image_file_handle = zipfile.ZipFile(self.image_filename)
+
+        train_captions = self.image_file_handle.open('train2014/%s'%key_info.image_name)
+        return train_captions.read()
 
     def extract_image_to_location(self, key, desired_file_path):
         """
