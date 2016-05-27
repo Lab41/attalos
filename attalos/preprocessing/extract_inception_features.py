@@ -70,6 +70,8 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
         predictions = sess.run(pool_3_tensor,
                                {'DecodeJpeg/contents:0': image_data})
         features[ind, :] = np.squeeze(predictions)
+        if os.path.exists(new_fname):
+            os.remove(new_fname)
     return features
 
 def save_hdf5(local_working_dir, hdf5_fname, image_features, im_files_for_batch):
@@ -108,6 +110,16 @@ def maybe_download_and_extract():
 
 
 def process_dataset(dataset_prep, output_fname, working_dir='/tmp'):
+  """
+
+  Args:
+      dataset_prep (attalos.dataset.DatasetPrep): Dataset to convert
+      output_fname: Output filename to extract to
+      working_dir: Working directory to use for intermediate files
+
+  Returns:
+
+  """
   # Download Inception weights if not already present and extract for use
   maybe_download_and_extract()
 
