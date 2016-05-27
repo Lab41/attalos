@@ -109,3 +109,18 @@ class DatasetPrep(object):
             # Download the file from `url` and save it locally under `file_name`:
             print('Downloading %s'%os.path.basename(candidate_filename))
             urllib.request.urlretrieve(url, candidate_filename)
+
+    @staticmethod
+    def get_candidate_filename(self, url):
+        """
+        Extract the filename the file pointed at by the URL would have if
+        it is already present on the file system
+        Args:
+            url: URL to download the file from
+
+        Returns:
+
+        """
+        filename = os.path.basename(url)
+        full_filename = os.path.join(self.dataset_directory, filename)
+        return full_filename
