@@ -82,7 +82,7 @@ class DatasetPrep(object):
         pass
 
     @abstractmethod
-    def __next__(self):
+    def __iter__(self):
         """
         Iterates over dataset return metadata about dataset, one record at a time
         Returns:

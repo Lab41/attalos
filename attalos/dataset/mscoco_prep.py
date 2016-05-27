@@ -70,6 +70,7 @@ class MSCOCODatasetPrep(DatasetPrep):
             for caption in caption_info['images']:
                 item_info[caption['id']] = {'fname': caption['file_name'],
                                                  'id': caption['id'],
+                                                 'tags': [],
                                                  'captions': []}
 
             for caption in caption_info['annotations']:
@@ -111,7 +112,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         Returns:
             Image Blob: Bytes of the image associated with the input ID
         """
-        key_info = key.get_key(key)
+        key_info = self.get_key(key)
         with zipfile.ZipFile(self.image_filename) as input_file:
             train_captions = input_file.open('train2014/%s'%key_info.image_name)
             return train_captions.read()
@@ -132,14 +133,14 @@ class MSCOCODatasetPrep(DatasetPrep):
         fOut.write(self.extract_image_by_key(key))
         fOut.close()
 
-    def __next__(self):
+    def __iter__(self):
         """
         Iterator over the dataset.
         Returns:
             RecordMetadata: Information about the next key
         """
         for key in sorted(self.list_keys()):
-            return self.get_key(key)
+            yield self.get_key(key)
 
         raise StopIteration()
 
