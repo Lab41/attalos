@@ -38,6 +38,6 @@ They can also be tested using:
 make test
 ```
 
-# Contributing to Poseidon
+# Contributing to Attalos
 
 Want to contribute?  Awesome!  Issue a pull request or see more details [here](https://github.com/Lab41/attalos/blob/master/CONTRIBUTING.md).
