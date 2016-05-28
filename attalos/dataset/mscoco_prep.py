@@ -5,7 +5,7 @@ from __future__ import print_function
 import json
 import zipfile
 from collections import defaultdict
-from dataset_prep import DatasetPrep, RecordMetadata, SplitType
+from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 
 TRAIN_VAL_INSTANCES_2014_URL = 'http://msvocds.blob.core.windows.net/annotations-1-0-3/instances_train-val2014.zip'

@@ -12,7 +12,7 @@ Generate Inception v3 Features
 # No GPU
 docker run -it\
     --volume /path/to/data:/local_data \
-    --volume $PWD:/image_extract \
+    --volume /path/to/attalos:/attalos \
     lab41/l41-caffe-keras-tf /bin/bash
 
 # With GPU Support
@@ -21,10 +21,10 @@ docker run -it\
     --device /dev/nvidia-uvm:/dev/nvidia-uvm \
     --device /dev/nvidia0:/dev/nvidia0 \
     --volume /path/to/data:/local_data \
-    --volume $PWD:/image_extract \
+    --volume /path/to/attalos:/attalos \
     lab41/l41-caffe-keras-tf /bin/bash
 
 # Run script creating image features
 # Suppress deprecation warning since it occurs once per image per batch normalization in the inception graph (aka a lot)
-python /image_extract/extract_inception_features.py --image_dir /local_data/train2014 --output_fname /local_data/mscoco_train2014.hdf5 | grep -v "deprecated"
-```
+cd /attalos
+PYTHON_PATH=$PYTHON_PATH:/attalos python /image_extract/extract_inception_features.py --image_dir /local_data/mscoco --output_fname /local_data/mscoco_train2014.hdf5 2>&1| grep -v "deprecated"
