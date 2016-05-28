@@ -8,6 +8,7 @@ import os
 import sys
 import tarfile
 import shutil
+import tempfile
 
 import numpy as np
 from six.moves import urllib
@@ -109,7 +110,7 @@ def maybe_download_and_extract():
   tarfile.open(filepath, 'r:gz').extractall(dest_directory)
 
 
-def process_dataset(dataset_prep, output_fname, working_dir='/tmp'):
+def process_dataset(dataset_prep, output_fname, working_dir=tempfile.gettempdir()):
   """
 
   Args:
@@ -148,7 +149,7 @@ def main(_):
                       help='Output hd5f filename')
   parser.add_argument('--working_dir',
                       dest='working_dir',
-                      default='/tmp',
+                      default=tempfile.gettempdir(),
                       type=str,
                       help='Working directory for hdf5 file creation')
   args = parser.parse_args()
