@@ -22,7 +22,9 @@ VISUAL_GENOME_RELATIONSHIPS = 'https://visualgenome.org/static/data/dataset/rela
 # Final import is the API
 sys.path.append(VISUAL_GENOME_API)
 import src.api as api
-
+import src.local as lapi
+import src.utils as utils
+import src.models as models
 
 # Wrapper for the Visual Genome
 class VGDatasetPrep(DatasetPrep):
@@ -55,6 +57,7 @@ class VGDatasetPrep(DatasetPrep):
 	self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
         # self.download_dataset()
 	self.load_metadata()
+	self.images_file_handle = None
 
     def download_dataset(self):
         """
@@ -93,7 +96,7 @@ class VGDatasetPrep(DatasetPrep):
         else:
             raise NotImplementedError('Split type not yet implemented')
 
-	self.item_info=api.GetAllImageIds()
+	self.item_info=lapi.GetAllImageData(dataDir=self.data_dir)
 
     def get_key(self, key):
         """
@@ -119,7 +122,15 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
             Image Blob: Bytes of the image associated with the input ID
         """
-	NotImplementedError('Split type not yet implemented')
+	imname = self.item_info[key].url.split('/')[-1]
+
+        key_info = self.get_key(key)
+
+        if self.images_file_handle is None:
+            self.images_file_handle = zipfile.ZipFile('/data/fs4/datasets/visual_genome/images.zip')
+
+        train_captions = self.images_file_handle.open('%s'%imname)
+        return train_captions.read()
 
     def extract_image_to_location(self, key, desired_file_path):
         """
@@ -129,9 +140,11 @@ class VGDatasetPrep(DatasetPrep):
             desired_file_path: Output filename that we should write the file to
 
         Returns:
-
         """
-	raise NotImplementedError('Split type not yet implemented')
+
+        fOut = open(desired_file_path, 'wb')
+        fOut.write(self.extract_image_by_key(key))
+        fOut.close()
 
     def __iter__(self):
         """
