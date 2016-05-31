@@ -7,7 +7,9 @@ import zipfile
 from collections import defaultdict
 from dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
+import src.api as vgapi
 
+# Import the Visual Genome API for functionality
 VISUAL_GENOME_IMAGES = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_METADATA = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_REGIONS = 'https://visualgenome.org/static/data/dataset/region_descriptions.json.zip'
@@ -15,19 +17,18 @@ VISUAL_GENOME_OBJECTS = 'https://visualgenome.org/static/data/dataset/objects.js
 VISUAL_GENOME_ATTRIBUTES = 'https://visualgenome.org/static/data/dataset/attributes.json.zip'
 VISUAL_GENOME_RELATIONSHIPS = 'https://visualgenome.org/static/data/dataset/relationships.json.zip'
 
-
-
-class MSCOCODatasetPrep(DatasetPrep):
+class VGDatasetPrep(DatasetPrep):
     def __init__(self, dataset_directory, split='train'):
         """
-        Initialize MS COCO specific dataset prep iterator
+        Initialize Visual Genome specific dataset prep iterator
         Args:
             dataset_directory: Directory to store image files in
             split: Train/Val split is allowed
         Returns:
 
         """
-        super(MSCOCODatasetPrep, self).__init__('MS COCO', dataset_directory)
+        super(VGDatasetPrep, self).__init__('Visual Genome ', dataset_directory)
+
         if split.lower() == 'train':
             self.split = SplitType.TRAIN
         elif split.lower() == 'test':
@@ -36,12 +37,16 @@ class MSCOCODatasetPrep(DatasetPrep):
             raise NotImplementedError('Split type not yet implemented')
         else:
             raise NotImplementedError('Split type not yet implemented')
-        self.instances_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
-        self.caption_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
-        self.image_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
-        self.download_dataset()
-        self.item_info = self.load_metadata()
-        self.image_file_handle = None
+
+	self.data_dir = dataset_directory
+
+        self.relationships_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
+        self.metadata_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
+        self.images_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
+	self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
+	self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
+        # self.download_dataset()
+	self.load_metadata()
 
     def download_dataset(self):
         """
@@ -49,13 +54,27 @@ class MSCOCODatasetPrep(DatasetPrep):
         Returns:
 
         """
-        self.download_if_not_present(self.instances_filename, VISUAL_GENOME_RELATIONSHIPS)
-        self.download_if_not_present(self.caption_filename, VISUAL_GENOME_METADATA)
-        self.image_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
+        self.download_if_not_present(self.metadata_filename, VISUAL_GENOME_METADATA)
+        self.download_if_not_present(self.images_filename, VISUAL_GENOME_IMAGES )
+        self.download_if_not_present(self.relationships_filename, VISUAL_GENOME_RELATIONSHIPS)
+        self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
+        self.download_if_not_present(self.attributes_filename, VISUAL_GENOME_ATTRIBUTES)
+       
+	zipref = zipfile.ZipFile(self.metadata_filename,'r')
+	zipref.extractall(data_dir)
+	zipref = zipfile.ZipFile(self.images_filename,'r')
+	zipref.extractall(data_dir)
+        zipref = zipfile.ZipFile(self.relationships_filename,'r')
+        zipref.extractall(data_dir)
+        zipref = zipfile.ZipFile(self.objects_filename,'r')
+        zipref.extractall(data_dir)
+        zipref = zipfile.ZipFile(self.attributes_filename,'r')
+        zipref.extractall(data_dir)
+	
 
     def load_metadata(self):
         """
-        Load the MS COCO dataset to allow for efficient iteration
+        Load the VGG dataset to allow for efficient iteration
         Returns:
 
         """
@@ -66,6 +85,8 @@ class MSCOCODatasetPrep(DatasetPrep):
         else:
             raise NotImplementedError('Split type not yet implemented')
 
+	self.item_info=api.GetAllImageIds()
+	
 	raise NotImplementedError('Split type not yet implemented')
 
     def get_key(self, key):
@@ -78,8 +99,8 @@ class MSCOCODatasetPrep(DatasetPrep):
             RecordMetadata: Returns ParserMetadata object containing metadata about item
         """
         item = self.item_info[key]
-        # return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
-	return vg.GetImageIdsInRange(startIndex=0, endIndex=2)
+        # return RecordMetadata(id=key, images_name=item['fname'], tags=item['tags'], captions=item['captions'])
+	return api.GetImageIdsInRange(startIndex=0, endIndex=2)
 
     def extract_image_by_key(self, key):
         """
