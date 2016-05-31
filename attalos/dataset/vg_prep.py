@@ -7,9 +7,11 @@ import zipfile
 from collections import defaultdict
 from dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
-import src.api as vgapi
+import sys
 
 # Import the Visual Genome API for functionality
+VISUAL_GENOME_API = '/work/attalos/accessVG'
+
 VISUAL_GENOME_IMAGES = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_METADATA = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_REGIONS = 'https://visualgenome.org/static/data/dataset/region_descriptions.json.zip'
@@ -17,6 +19,12 @@ VISUAL_GENOME_OBJECTS = 'https://visualgenome.org/static/data/dataset/objects.js
 VISUAL_GENOME_ATTRIBUTES = 'https://visualgenome.org/static/data/dataset/attributes.json.zip'
 VISUAL_GENOME_RELATIONSHIPS = 'https://visualgenome.org/static/data/dataset/relationships.json.zip'
 
+# Final import is the API
+sys.path.append(VISUAL_GENOME_API)
+import src.api as api
+
+
+# Wrapper for the Visual Genome
 class VGDatasetPrep(DatasetPrep):
     def __init__(self, dataset_directory, split='train'):
         """
@@ -86,8 +94,6 @@ class VGDatasetPrep(DatasetPrep):
             raise NotImplementedError('Split type not yet implemented')
 
 	self.item_info=api.GetAllImageIds()
-	
-	raise NotImplementedError('Split type not yet implemented')
 
     def get_key(self, key):
         """
@@ -98,9 +104,11 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
             RecordMetadata: Returns ParserMetadata object containing metadata about item
         """
-        item = self.item_info[key]
+        
+	# item = self.item_info[key]
         # return RecordMetadata(id=key, images_name=item['fname'], tags=item['tags'], captions=item['captions'])
-	return api.GetImageIdsInRange(startIndex=0, endIndex=2)
+
+	return api.GetImageIdsInRange(startIndex=key, endIndex=key+1)
 
     def extract_image_by_key(self, key):
         """
