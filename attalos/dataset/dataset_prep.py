@@ -106,8 +106,10 @@ class DatasetPrep(object):
         else:
             # Taken from: http://stackoverflow.com/questions/7243750/download-file-from-web-in-python-3
             # Download the file from `url` and save it locally under `file_name`:
-            print('Downloading %s'%os.path.basename(candidate_filename))
+            filename = os.path.basename(candidate_filename)
+            print('Downloading {} starting'.format(filename))
             urllib.request.urlretrieve(url, candidate_filename)
+            print('Downloading {} finished'.format(filename))
 
     def get_candidate_filename(self, url):
         """
