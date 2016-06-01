@@ -3,12 +3,14 @@ from __future__ import division
 from __future__ import print_function
 
 from lxml import objectify
+import numpy as np
 import os
+import struct
 import tarfile
 
 import six
 
-from dataset_prep import DatasetPrep, RecordMetadata, SplitType
+from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 
 IAPRTC12_URL = "http://www-i6.informatik.rwth-aachen.de/imageclef/resources/iaprtc12.tgz"
@@ -115,7 +117,44 @@ class IAPRTC12DatasetPrep(DatasetPrep):
 
     def __load_tags(self):
         """Read the tags from the tag tarball and load them into the class."""
-        pass
+        if self.__tag_tarball_filehandle is None:
+            self.__open_tarball()
+
+        # Load the ID files so that we know what tags are on the various images
+        id_files = {
+            "train": "iaprtc12_train_list.txt",
+            "test": "iaprtc12_test_list.txt",
+        }
+        ids = {}
+        for split, file in six.iteritems(id_files):
+            f = self.__tag_tarball_filehandle.extractfile(file)
+            ids[split] = f.read().split()
+
+        # Load the dictionary so that we can translate between the encoding and the words
+        f = self.__tag_tarball_filehandle.extractfile("iaprtc12_dictionary.txt")
+        word_map = np.array(f.read().split())
+
+        # Load the vectors
+        vec_files = {
+            "train": "iaprtc12_train_annot.hvecs",
+            "test": "iaprtc12_test_annot.hvecs",
+        }
+        word_vectors = {}
+        for split, file in six.iteritems(vec_files):
+            f = self.__tag_tarball_filehandle.extractfile(file)
+            word_vectors[split] = self.parse_LEAR_annotation_file(f)
+
+        # Iterate over the
+        for split in ids:
+            uniq_ids = ids[split]
+            vecs = word_vectors[split]
+            for i, uniq_id in enumerate(uniq_ids):
+                vec = vecs[i]
+                # There are a few missing images/annotations, so we skip those cases
+                try:
+                    self.item_info[uniq_id]["tags"] = list(word_map[vec == 1])
+                except KeyError:
+                    continue
 
     def __open_tarball(self):
         """ Open the tarballs and save the file handles, but only if it is not
@@ -218,12 +257,12 @@ class IAPRTC12DatasetPrep(DatasetPrep):
         raise StopIteration()
 
     def list_keys(self):
-        """
+        """Return a list of all the unique object ids.
 
         Returns:
             keys: The set of keys in this dataset
         """
-        return self.dataset_keys()
+        return self.item_info.keys()
 
     @staticmethod
     def get_id_from_path(path):
@@ -240,3 +279,31 @@ class IAPRTC12DatasetPrep(DatasetPrep):
         _, first = os.path.split(head)
         second, _ = os.path.splitext(tail)
         return first + '/' + second
+
+    @staticmethod
+    def parse_LEAR_annotation_file(f_obj):
+        """Unpack the custom LEAR data stuctures.
+
+        Args:
+            f_obj (Tarfile TarInfo object): A TarInfo object of the annotation file.
+
+        Returns:
+            numpy matrix: A two dimensional numpy array. Each row is an image,
+                and each entry in the row indicates if that tag applies to the
+                image.
+        """
+        item_size = 2  # Number of bytes for a short
+
+        dimension = struct.unpack('h', f_obj.read(2))[0]
+        num_rows = int(f_obj.size / (item_size + item_size*dimension))
+
+        data = np.zeros((num_rows, dimension))
+
+        data[0, :] = np.array(list(struct.unpack('{}h'.format(dimension), f_obj.read(item_size*dimension))))
+        for i in range(1, num_rows):
+            row_dimension = struct.unpack('h', f_obj.read(2))[0]
+            if row_dimension != dimension:
+                raise ValueError('Unexpected dimension: got {} expected {}'.format(row_dimension, dimension))
+            data[i, :] = np.array(list(struct.unpack('{}h'.format(dimension), f_obj.read(item_size*dimension))))
+
+        return data
