@@ -5,7 +5,7 @@ from __future__ import print_function
 import json
 import zipfile
 from collections import defaultdict
-from dataset_prep import DatasetPrep, RecordMetadata, SplitType
+from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 import sys
 import os
