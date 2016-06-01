@@ -8,6 +8,8 @@ import scipy.io
 
 import cPickle as pickle
 
+import caffe
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--caffe',
                     help='path to caffe installation')
@@ -28,8 +30,6 @@ args = parser.parse_args()
 if args.caffe:
     caffepath = args.caffe + '/python'
     sys.path.append(caffepath)
-
-import caffe
 
 def predict(in_data, net):
     """

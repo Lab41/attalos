@@ -8,6 +8,7 @@ from collections import defaultdict
 from dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 import sys
+import os
 
 VISUAL_GENOME_IMAGES = 'https://cs.stanford.edu/people/rak248/VG_100K/images.zip'
 VISUAL_GENOME_METADATA = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
@@ -61,7 +62,6 @@ class VGDatasetPrep(DatasetPrep):
         self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
         self.download_if_not_present(self.attributes_filename, VISUAL_GENOME_ATTRIBUTES)
 
-        import os
         if not os.path.exists(self.metadata_filename[:-4]):
             zipref = zipfile.ZipFile(self.metadata_filename,'r')
             zipref.extractall(self.data_dir)
@@ -128,7 +128,7 @@ class VGDatasetPrep(DatasetPrep):
             self.images_file_handle = zipfile.ZipFile(self.images_filename)
 
         zipfile.ZipFile.namelist(self.images_file_handle)
-        print('image name %s'%(self.images_filename))
+        print('image name {}'.format(self.images_filename))
         train_captions = self.images_file_handle.open('%s'%imname)
 
         return train_captions.read()
