@@ -24,6 +24,7 @@ from __future__ import print_function
 
 from attalos.dataset.dataset_prep import DatasetPrep
 import pytest
+import tempfile
 
 
 @pytest.fixture(scope='module')
@@ -45,3 +46,14 @@ def test_get_candidate_filename(dataset_prep):
     # Local
     url2 = "/home/test/test_stuff/" + filename
     assert target_filename == dataset_prep.get_candidate_filename(url1)
+
+
+def test_download_if_not_present(dataset_prep):
+    """
+    Tests the on_get function of the PCAPResource class.
+    """
+    # Test abort if file exists
+    with tempfile.NamedTemporaryFile() as temp_file:
+        assert True == dataset_prep.download_if_not_present(temp_file.name, None)
+
+    # TODO: Add in test download
