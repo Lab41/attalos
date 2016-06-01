@@ -92,9 +92,11 @@ class VGDatasetPrep(DatasetPrep):
         else:
             raise NotImplementedError('Split type not yet implemented')
 
-        self.item_info = json.loads(open(self.metadata_filename[:-4], 'r').read().decode('ascii'))
-        # self.item_info=lapi.GetAllImageData(dataDir=self.data_dir)
+        item_info = json.loads(open(self.metadata_filename[:-4], 'r').read().decode('ascii'))
+        self.item_keys = [ item_id['id'] for item_id in item_info ]
+        self.item_info = dict(zip(self.item_keys, item_info))
         
+
 
     def get_key(self, key):
         """
@@ -109,7 +111,7 @@ class VGDatasetPrep(DatasetPrep):
         # item = self.item_info[key]
         # return RecordMetadata(id=key, images_name=item['fname'], tags=item['tags'], captions=item['captions'])
 
-        return self.item_info[key-1]
+        return self.item_info[key]
 
     def extract_image_by_key(self, key):
         """
@@ -151,7 +153,6 @@ class VGDatasetPrep(DatasetPrep):
         ''' 
         Gets the image (assuming it's been extracted).
         '''
-        
         imdata = self.get_key(key)
         imurl = imdata['url'].split('/')[-1]
         return self.data_dir+imurl
@@ -171,6 +172,6 @@ class VGDatasetPrep(DatasetPrep):
         """
         List all keys in the dataset
         Returns:
-
         """
+
         return self.item_info.keys()
