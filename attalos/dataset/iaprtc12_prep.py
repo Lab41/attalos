@@ -257,12 +257,12 @@ class IAPRTC12DatasetPrep(DatasetPrep):
         raise StopIteration()
 
     def list_keys(self):
-        """
+        """Return a list of all the unique object ids.
 
         Returns:
             keys: The set of keys in this dataset
         """
-        return self.dataset_keys()
+        return self.item_info.keys()
 
     @staticmethod
     def get_id_from_path(path):
