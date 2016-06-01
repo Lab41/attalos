@@ -10,7 +10,7 @@ import tarfile
 
 import six
 
-from dataset_prep import DatasetPrep, RecordMetadata, SplitType
+from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 
 IAPRTC12_URL = "http://www-i6.informatik.rwth-aachen.de/imageclef/resources/iaprtc12.tgz"
