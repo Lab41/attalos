@@ -16,13 +16,6 @@ VISUAL_GENOME_OBJECTS = 'https://visualgenome.org/static/data/dataset/objects.js
 VISUAL_GENOME_ATTRIBUTES = 'https://visualgenome.org/static/data/dataset/attributes.json.zip'
 VISUAL_GENOME_RELATIONSHIPS = 'https://visualgenome.org/static/data/dataset/relationships.json.zip'
 
-# Final import is the API
-sys.path.append(VISUAL_GENOME_API)
-import src.api as api
-import src.local as lapi
-import src.utils as utils
-import src.models as models
-
 # Wrapper for the Visual Genome
 class VGDatasetPrep(DatasetPrep):
     def __init__(self, dataset_directory, split='train'):
@@ -45,16 +38,16 @@ class VGDatasetPrep(DatasetPrep):
         else:
             raise NotImplementedError('Split type not yet implemented')
 
-	self.data_dir = dataset_directory
+        self.data_dir = dataset_directory
 
-	self.relationships_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
-	self.metadata_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
-	self.images_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
-	self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
-	self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
+        self.relationships_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
+        self.metadata_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
+        self.images_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
+        self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
+        self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
         self.download_dataset()
-	self.load_metadata()
-	self.images_file_handle = None
+        self.load_metadata()
+        self.images_file_handle = None
 
     def download_dataset(self, extract_all_images=False):
         """
@@ -62,29 +55,29 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
         """
 
-	self.download_if_not_present(self.metadata_filename, VISUAL_GENOME_METADATA)
-	self.download_if_not_present(self.images_filename, VISUAL_GENOME_IMAGES )
+        self.download_if_not_present(self.metadata_filename, VISUAL_GENOME_METADATA)
+        self.download_if_not_present(self.images_filename, VISUAL_GENOME_IMAGES )
         self.download_if_not_present(self.relationships_filename, VISUAL_GENOME_RELATIONSHIPS)
         self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
         self.download_if_not_present(self.attributes_filename, VISUAL_GENOME_ATTRIBUTES)
 
-	import os
-	if not os.path.exists(self.metadata_filename[:-4]):
-		zipref = zipfile.ZipFile(self.metadata_filename,'r')
-		zipref.extractall(self.data_dir)
-	if not os.path.exists(self.relationships_filename[:-4]):
-        	zipref = zipfile.ZipFile(self.relationships_filename,'r')
-        	zipref.extractall(self.data_dir)
-	if not os.path.exists(self.objects_filename[:-4]):
-        	zipref = zipfile.ZipFile(self.objects_filename,'r')
-        	zipref.extractall(self.data_dir)
-	if not os.path.exists(self.attributes_filename[:-4]):
-        	zipref = zipfile.ZipFile(self.attributes_filename,'r')
-        	zipref.extractall(self.data_dir)
+        import os
+        if not os.path.exists(self.metadata_filename[:-4]):
+            zipref = zipfile.ZipFile(self.metadata_filename,'r')
+            zipref.extractall(self.data_dir)
+        if not os.path.exists(self.relationships_filename[:-4]):
+            zipref = zipfile.ZipFile(self.relationships_filename,'r')
+            zipref.extractall(self.data_dir)
+        if not os.path.exists(self.objects_filename[:-4]):
+            zipref = zipfile.ZipFile(self.objects_filename,'r')
+            zipref.extractall(self.data_dir)
+        if not os.path.exists(self.attributes_filename[:-4]):
+            zipref = zipfile.ZipFile(self.attributes_filename,'r')
+            zipref.extractall(self.data_dir)
 
-	if extract_all_images:
-		zipref = zipfile.ZipFile(self.images_filename,'r')
-		zipref.extractall(self.data_dir)
+        if extract_all_images:
+            zipref = zipfile.ZipFile(self.images_filename,'r')
+            zipref.extractall(self.data_dir)
 
     def load_metadata(self):
         """
@@ -99,9 +92,9 @@ class VGDatasetPrep(DatasetPrep):
         else:
             raise NotImplementedError('Split type not yet implemented')
 
-	self.item_info = json.loads(open(self.metadata_filename[:-4], 'r').read().decode('ascii'))
-	# self.item_info=lapi.GetAllImageData(dataDir=self.data_dir)
-	
+        self.item_info = json.loads(open(self.metadata_filename[:-4], 'r').read().decode('ascii'))
+        # self.item_info=lapi.GetAllImageData(dataDir=self.data_dir)
+        
 
     def get_key(self, key):
         """
@@ -113,10 +106,10 @@ class VGDatasetPrep(DatasetPrep):
             RecordMetadata: Returns ParserMetadata object containing metadata about item
         """
         
-	# item = self.item_info[key]
+        # item = self.item_info[key]
         # return RecordMetadata(id=key, images_name=item['fname'], tags=item['tags'], captions=item['captions'])
 
-	return self.item_info[key-1]
+        return self.item_info[key-1]
 
     def extract_image_by_key(self, key):
         """
@@ -127,15 +120,15 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
             Image Blob: Bytes of the image associated with the input ID
         """
-	imname = self.item_info[key].url.split('/')[-1]
+        imname = self.item_info[key].url.split('/')[-1]
 
         key_info = self.get_key(key)
 
         if self.images_file_handle is None:
             self.images_file_handle = zipfile.ZipFile(self.images_filename)
 
-	zipfile.ZipFile.namelist(self.images_file_handle)
-	print('image name %s'%(self.images_filename))
+        zipfile.ZipFile.namelist(self.images_file_handle)
+        print('image name %s'%(self.images_filename))
         train_captions = self.images_file_handle.open('%s'%imname)
 
         return train_captions.read()
@@ -155,13 +148,13 @@ class VGDatasetPrep(DatasetPrep):
         fOut.close()
 
     def get_image_by_key(self, key):
-	''' 
-	Gets the image (assuming it's been extracted).
-	'''
-	
-	imdata = self.get_key(key)
-	imurl = imdata['url'].split('/')[-1]
-	return self.data_dir+imurl
+        ''' 
+        Gets the image (assuming it's been extracted).
+        '''
+        
+        imdata = self.get_key(key)
+        imurl = imdata['url'].split('/')[-1]
+        return self.data_dir+imurl
 
     def __iter__(self):
         """
