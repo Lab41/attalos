@@ -18,6 +18,10 @@
 Test module for dataset_prep.py
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from attalos.dataset.dataset_prep import DatasetPrep
 import pytest
 
