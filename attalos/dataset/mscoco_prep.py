@@ -89,6 +89,7 @@ class MSCOCODatasetPrep(DatasetPrep):
                 item_info[image_id]['tags'] = list(set(image_tags[image_id]))
             return item_info
 
+
     def get_key(self, key):
         """
         Return metadata about key
@@ -100,6 +101,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         """
         item = self.item_info[key]
         return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
+
 
     def extract_image_by_key(self, key):
         """
@@ -117,6 +119,7 @@ class MSCOCODatasetPrep(DatasetPrep):
 
         train_captions = self.image_file_handle.open('train2014/%s'%key_info.image_name)
         return train_captions.read()
+
 
     def extract_image_to_location(self, key, desired_file_path):
         """

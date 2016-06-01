@@ -9,9 +9,6 @@ from dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 import sys
 
-# Import the Visual Genome API for functionality
-VISUAL_GENOME_API = '/work/attalos/accessVG'
-
 VISUAL_GENOME_IMAGES = 'https://cs.stanford.edu/people/rak248/VG_100K/images.zip'
 VISUAL_GENOME_METADATA = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_REGIONS = 'https://visualgenome.org/static/data/dataset/region_descriptions.json.zip'
@@ -87,8 +84,7 @@ class VGDatasetPrep(DatasetPrep):
 
 	if extract_all_images:
 		zipref = zipfile.ZipFile(self.images_filename,'r')
-		zipref.extractall(data_dir)
-
+		zipref.extractall(self.data_dir)
 
     def load_metadata(self):
         """
@@ -103,7 +99,9 @@ class VGDatasetPrep(DatasetPrep):
         else:
             raise NotImplementedError('Split type not yet implemented')
 
-	self.item_info=lapi.GetAllImageData(dataDir=self.data_dir)
+	self.item_info = json.loads(open(self.metadata_filename[:-4], 'r').read().decode('ascii'))
+	# self.item_info=lapi.GetAllImageData(dataDir=self.data_dir)
+	
 
     def get_key(self, key):
         """
@@ -118,7 +116,7 @@ class VGDatasetPrep(DatasetPrep):
 	# item = self.item_info[key]
         # return RecordMetadata(id=key, images_name=item['fname'], tags=item['tags'], captions=item['captions'])
 
-	return api.GetImageIdsInRange(startIndex=key, endIndex=key+1)
+	return self.item_info[key-1]
 
     def extract_image_by_key(self, key):
         """
@@ -155,6 +153,15 @@ class VGDatasetPrep(DatasetPrep):
         fOut = open(desired_file_path, 'wb')
         fOut.write(self.extract_image_by_key(key))
         fOut.close()
+
+    def get_image_by_key(self, key):
+	''' 
+	Gets the image (assuming it's been extracted).
+	'''
+	
+	imdata = self.get_key(key)
+	imurl = imdata['url'].split('/')[-1]
+	return self.data_dir+imurl
 
     def __iter__(self):
         """
