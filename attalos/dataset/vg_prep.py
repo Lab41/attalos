@@ -46,6 +46,7 @@ class VGDatasetPrep(DatasetPrep):
         self.images_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
         self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
         self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
+        self.regions_filename = self.get_candidate_filename(VISUAL_GENOME_REGIONS)
         self.download_dataset()
         self.load_metadata()
         self.images_file_handle = None
@@ -61,6 +62,7 @@ class VGDatasetPrep(DatasetPrep):
         self.download_if_not_present(self.relationships_filename, VISUAL_GENOME_RELATIONSHIPS)
         self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
         self.download_if_not_present(self.attributes_filename, VISUAL_GENOME_ATTRIBUTES)
+        self.download_if_not_present(self.regions_filename, VISUAL_GENOME_REGIONS)
 
         if not os.path.exists(self.metadata_filename[:-4]) and extract_files:
             zipref = zipfile.ZipFile(self.metadata_filename,'r')
@@ -112,6 +114,19 @@ class VGDatasetPrep(DatasetPrep):
                 raise
             self.tags_data[row['id']] = list(objects)
 
+        # Load caption data
+        captions_raw_name = os.path.basename(self.regions_filename)[:-1*len('.zip')]
+        objects_data = json.loads(zipfile.ZipFile(self.regions_filename).open(captions_raw_name).read())
+        self.captions_data = {}
+        for row in objects_data:
+            try:
+                # TODO: Check if taking the first name is a reasonable thing to do
+                captions = set([region['phrase'] for region in row['regions']])
+            except:
+                print(row)
+                raise
+            self.captions_data[row['id']] = list(captions)
+
 
     def get_key(self, key):
         """
@@ -130,7 +145,12 @@ class VGDatasetPrep(DatasetPrep):
         else:
             tags = None
 
-        return RecordMetadata(id=key, image_name=image_name, tags=tags, captions=None)
+        if key in self.tags_data:
+            captions = self.captions_data[key]
+        else:
+            captions = None
+
+        return RecordMetadata(id=key, image_name=image_name, tags=tags, captions=captions)
 
         return self.item_info[key]
 
