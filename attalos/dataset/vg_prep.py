@@ -14,8 +14,8 @@ VISUAL_GENOME_IMAGES = 'https://cs.stanford.edu/people/rak248/VG_100K/images.zip
 VISUAL_GENOME_METADATA = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_REGIONS = 'https://visualgenome.org/static/data/dataset/region_descriptions.json.zip'
 VISUAL_GENOME_OBJECTS = 'https://visualgenome.org/static/data/dataset/objects.json.zip'
-VISUAL_GENOME_ATTRIBUTES = 'https://visualgenome.org/static/data/dataset/attributes.json.zip'
-VISUAL_GENOME_RELATIONSHIPS = 'https://visualgenome.org/static/data/dataset/relationships.json.zip'
+#VISUAL_GENOME_ATTRIBUTES = 'https://visualgenome.org/static/data/dataset/attributes.json.zip'
+#VISUAL_GENOME_RELATIONSHIPS = 'https://visualgenome.org/static/data/dataset/relationships.json.zip'
 
 # Wrapper for the Visual Genome
 class VGDatasetPrep(DatasetPrep):
@@ -41,44 +41,27 @@ class VGDatasetPrep(DatasetPrep):
 
         self.data_dir = dataset_directory
 
-        self.relationships_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
+        #self.relationships_filename = self.get_candidate_filename(VISUAL_GENOME_RELATIONSHIPS)
         self.metadata_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
         self.images_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
         self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
-        self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
+        #self.attributes_filename = self.get_candidate_filename(VISUAL_GENOME_ATTRIBUTES)
         self.regions_filename = self.get_candidate_filename(VISUAL_GENOME_REGIONS)
         self.download_dataset()
         self.load_metadata()
         self.images_file_handle = None
 
-    def download_dataset(self, extract_files=False):
+    def download_dataset(self):
         """
         Downloads the dataset if it's not already present in the download directory
         Returns:
         """
 
         self.download_if_not_present(self.metadata_filename, VISUAL_GENOME_METADATA)
-        self.download_if_not_present(self.images_filename, VISUAL_GENOME_IMAGES )
-        self.download_if_not_present(self.relationships_filename, VISUAL_GENOME_RELATIONSHIPS)
+        self.download_if_not_present(self.images_filename, VISUAL_GENOME_IMAGES)
         self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
-        self.download_if_not_present(self.attributes_filename, VISUAL_GENOME_ATTRIBUTES)
         self.download_if_not_present(self.regions_filename, VISUAL_GENOME_REGIONS)
 
-        if not os.path.exists(self.metadata_filename[:-4]) and extract_files:
-            zipref = zipfile.ZipFile(self.metadata_filename,'r')
-            zipref.extractall(self.data_dir)
-        if not os.path.exists(self.relationships_filename[:-4]) and extract_files:
-            zipref = zipfile.ZipFile(self.relationships_filename,'r')
-            zipref.extractall(self.data_dir)
-        if not os.path.exists(self.objects_filename[:-4]) and extract_files:
-            zipref = zipfile.ZipFile(self.objects_filename,'r')
-            zipref.extractall(self.data_dir)
-        if not os.path.exists(self.attributes_filename[:-4]) and extract_files:
-            zipref = zipfile.ZipFile(self.attributes_filename,'r')
-            zipref.extractall(self.data_dir)
-        if not os.path.exists(self.images_filename[:-4]) and extract_files:
-            zipref = zipfile.ZipFile(self.images_filename,'r')
-            zipref.extractall(self.data_dir)
 
     def load_metadata(self):
         """
@@ -95,15 +78,17 @@ class VGDatasetPrep(DatasetPrep):
 
         # Load Image Metadata
         metadata_raw_name = os.path.basename(self.metadata_filename)[:-1*len('.zip')]
+        # json_data = zipfile.ZipFile(self.metadata_filename).open(metadata_raw_name).read()
+        # item_info = json.loads(json_data)
         json_file = zipfile.ZipFile(self.metadata_filename).open(metadata_raw_name)
-        json_str = json_file.read()
-        item_info = json.loads(json_str)
-        self.item_keys = [ item_id['id'] for item_id in item_info ]
+        item_info = json.load(json_file)
+        self.item_keys = [item_id['id'] for item_id in item_info]
         self.item_info = dict(zip(self.item_keys, item_info))
 
         # Load object data
         objects_raw_name = os.path.basename(self.objects_filename)[:-1*len('.zip')]
-        objects_data = json.loads(zipfile.ZipFile(self.objects_filename).open(objects_raw_name).read())
+        json_file = zipfile.ZipFile(self.objects_filename).open(objects_raw_name)
+        objects_data = json.load(json_file)
         self.tags_data = {}
         for row in objects_data:
             try:
@@ -116,11 +101,11 @@ class VGDatasetPrep(DatasetPrep):
 
         # Load caption data
         captions_raw_name = os.path.basename(self.regions_filename)[:-1*len('.zip')]
-        objects_data = json.loads(zipfile.ZipFile(self.regions_filename).open(captions_raw_name).read())
+        json_file = zipfile.ZipFile(self.regions_filename).open(captions_raw_name)
+        objects_data = json.load(json_file)
         self.captions_data = {}
         for row in objects_data:
             try:
-                # TODO: Check if taking the first name is a reasonable thing to do
                 captions = set([region['phrase'] for region in row['regions']])
             except:
                 print(row)
