@@ -2,12 +2,10 @@
 
 # Assumptions:
 1. Make has already been run creating the docker containers
-2. The MSCOCO data (http://msvocds.blob.core.windows.net/coco2014/train2014.zip) has been downloaded
-  * The data should be unzipped such that your folder structure looks like /path/to/data/train2014
+2. Assumes your data is in /local_data/{dataset_name}
 
 
-
-Generate Inception v3 Features
+# Start relevant docker container
 ```
 # No GPU
 docker run -it\
@@ -24,7 +22,24 @@ docker run -it\
     --volume /path/to/attalos:/attalos \
     lab41/l41-caffe-keras-tf /bin/bash
 
-# Run script creating image features
-# Suppress deprecation warning since it occurs once per image per batch normalization in the inception graph (aka a lot)
+```
+# Run Extract Scripts in Docker container
+```
+
 cd /attalos
-PYTHON_PATH=$PYTHON_PATH:/attalos python /image_extract/extract_inception_features.py --image_dir /local_data/mscoco --output_fname /local_data/mscoco_train2014.hdf5 2>&1| grep -v "deprecated"
+
+#Extract Text Features
+PYTHON_PATH=$PYTHON_PATH:/attalos python attalos/preprocessing/text/extract_text_features.py \
+    --dataset_dir /local_data/mscoco \
+    --output_fname /local_data/features/text/mscoco_train2014_text.json.gz \
+    --dataset_type mscoco \
+    --split train
+
+#Extract Inception Features
+# Suppress deprecation warning since it occurs once per image per batch normalization in the inception graph (aka a lot)
+PYTHON_PATH=$PYTHON_PATH:/attalos python attalos/preprocessing/image/extract_inception_features.py \
+    --dataset_dir /local_data/mscoco \
+    --output_fname /local_data/features/image/mscoco_train2014_inception.hdf5z \
+    --dataset_type mscoco \
+    --split train 2>&1 | grep -v "deprecated"
+```
