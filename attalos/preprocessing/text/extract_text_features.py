@@ -18,7 +18,7 @@ def extract_text_features(dataset_prep):
     tag_dict = {}
     caption_dict = {}
     for img_record in dataset_prep: # img_record (attalos.dataset.dataset_prep.RecordMetadata)
-        id = img_record.id
+        id = str(img_record.id) # Keys should be strings
         tags = img_record.tags
         captions = img_record.captions
         tag_dict[id] = tags
