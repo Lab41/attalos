@@ -73,7 +73,7 @@ def main():
                       type=str,
                       help='Text Feature file')
     args = parser.parse_args()
-    t = Dataset(args.image_feature_file, args.text_feature_filename)
+    t = Dataset(args.image_feature_file, args.text_feature_file)
 
     start_time = time.time()
     for i in range(10):
