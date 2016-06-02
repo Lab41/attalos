@@ -57,6 +57,14 @@ def main():
                       dest='dataset_dir',
                       type=str,
                       help='Directory with input data')
+    parser.add_argument('--dataset_type',
+                      dest='dataset_type',
+                      default='mscoco',
+                      choices=['mscoco', 'visualgenome', 'iaprtc'])
+    parser.add_argument('--split',
+                      dest='split',
+                      default='train',
+                      choices=['train', 'test', 'val'])
     parser.add_argument('--output_fname',
                       dest='output_fname',
                       default='captions_text.json.gz',
@@ -64,7 +72,21 @@ def main():
                       help='Output json filename')
 
     args = parser.parse_args()
-    dataset_prep = MSCOCODatasetPrep(args.dataset_dir)
+    if args.dataset_type == 'mscoco':
+        from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
+        print('Processing MSCOCO Data')
+        dataset_prep = MSCOCODatasetPrep(args.dataset_dir, split=args.split)
+    elif args.dataset_type == 'visualgenome':
+        print('Processing Visual Genome Data')
+        from attalos.dataset.vg_prep import VGDatasetPrep
+        dataset_prep = VGDatasetPrep(args.dataset_dir, split=args.split)
+    elif args.dataset_type == 'iaprtc':
+        print('Processing IAPRTC-12 data')
+        from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
+        dataset_prep = IAPRTC12DatasetPrep(args.dataset_dir, split=args.split)
+    else:
+        raise NotImplementedError('Dataset type {} not supported'.format(args.dataset_type))
+
     process_dataset(dataset_prep, args.output_fname)
 
 if __name__ == '__main__':

@@ -60,7 +60,7 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
   with tf.Session() as sess:
     for ind, img_record in enumerate(dataset):
         if ind % 1000 == 0:
-            print ('Complted %d of %d'%(ind, len(image_keys)))
+            print ('Completed %d of %d'%(ind, len(image_keys)))
 
         new_fname = os.path.join(tmp_dir, os.path.basename(img_record.image_name))
         dataset.extract_image_to_location(img_record.id, new_fname)
@@ -73,18 +73,19 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
         features[ind, :] = np.squeeze(predictions)
         if os.path.exists(new_fname):
             os.remove(new_fname)
+
     return features
 
-def save_hdf5(local_working_dir, hdf5_fname, image_features, im_files_for_batch):
+def save_hdf5(local_working_dir, hdf5_fname, image_features, image_ids):
     '''
     Create hdf5 file from features and filename list
     '''
     bname = os.path.basename(hdf5_fname)
     temp_fname = os.path.join(local_working_dir, bname)
 
-    im_files_wo_fnames = [os.path.basename(file) for file in im_files_for_batch]
+
     fOut = h5py.File(temp_fname, 'w')
-    fOut.create_dataset('filenames', data=im_files_wo_fnames)
+    fOut.create_dataset('ids', data=image_ids)
     fOut.create_dataset('feats', data=image_features, dtype=np.float32, compression='gzip')
     fOut.close()
 
@@ -129,19 +130,27 @@ def process_dataset(dataset_prep, output_fname, working_dir=tempfile.gettempdir(
   features = run_inference_on_dataset(dataset_prep)
 
   # Save computed features to file
-  image_names_only_filename_list = [img_record.image_name for img_record in dataset_prep]
-  save_hdf5(working_dir, output_fname, features, image_names_only_filename_list)
+  image_ids = [str(record.id) for record in dataset_prep]
+  save_hdf5(working_dir, output_fname, features, image_ids)
 
 
 def main(_):
   import argparse
-  from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
+
 
   parser = argparse.ArgumentParser(description='Extract image features using Inception model.')
   parser.add_argument('--dataset_dir',
                       dest='dataset_dir',
                       type=str,
                       help='Directory with input images')
+  parser.add_argument('--dataset_type',
+                      dest='dataset_type',
+                      default='mscoco',
+                      choices=['mscoco', 'visualgenome', 'iaprtc'])
+  parser.add_argument('--split',
+                      dest='split',
+                      default='train',
+                      choices=['train', 'test', 'val'])
   parser.add_argument('--output_fname',
                       dest='output_fname',
                       default='image_features.hdf5',
@@ -154,8 +163,20 @@ def main(_):
                       help='Working directory for hdf5 file creation')
   args = parser.parse_args()
 
-
-  dataset_prep = MSCOCODatasetPrep(args.dataset_dir)
+  if args.dataset_type == 'mscoco':
+    print('Processing MSCOCO Data')
+    from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
+    dataset_prep = MSCOCODatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'visualgenome':
+    print('Processing Visual Genome Data')
+    from attalos.dataset.vg_prep import VGDatasetPrep
+    dataset_prep = VGDatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'iaprtc':
+    print('Processing IAPRTC-12 data')
+    from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
+    dataset_prep = IAPRTC12DatasetPrep(args.dataset_dir, split=args.split)
+  else:
+      raise NotImplementedError('Dataset type {} not supported'.format(args.dataset_type))
   process_dataset(dataset_prep, args.output_fname, working_dir=args.working_dir)
 
 
