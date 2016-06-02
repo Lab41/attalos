@@ -39,7 +39,7 @@ PYTHON_PATH=$PYTHON_PATH:/attalos python attalos/preprocessing/text/extract_text
 # Suppress deprecation warning since it occurs once per image per batch normalization in the inception graph (aka a lot)
 PYTHON_PATH=$PYTHON_PATH:/attalos python attalos/preprocessing/image/extract_inception_features.py \
     --dataset_dir /local_data/mscoco \
-    --output_fname /local_data/features/image/mscoco_train2014_inception.hdf5z \
+    --output_fname /local_data/features/image/mscoco_train2014_inception.hdf5 \
     --dataset_type mscoco \
     --split train 2>&1 | grep -v "deprecated"
 ```
