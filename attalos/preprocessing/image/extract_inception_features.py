@@ -9,8 +9,10 @@ import sys
 import tarfile
 import shutil
 import tempfile
+import subprocess
 
 import numpy as np
+from scipy.misc import imread
 from six.moves import urllib
 import tensorflow as tf
 import h5py
@@ -64,12 +66,31 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
 
         new_fname = os.path.join(tmp_dir, os.path.basename(img_record.image_name))
         dataset.extract_image_to_location(img_record.id, new_fname)
-        if not tf.gfile.Exists(new_fname):
-            tf.logging.fatal('File does not exist %s', new_fname)
-        image_data = tf.gfile.FastGFile(new_fname, 'rb').read()
-        pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
-        predictions = sess.run(pool_3_tensor,
-                               {'DecodeJpeg/contents:0': image_data})
+
+        try:
+            print(new_fname)
+            if not tf.gfile.Exists(new_fname):
+                tf.logging.fatal('File does not exist %s', new_fname)
+            image_data = tf.gfile.FastGFile(new_fname, 'rb').read()
+
+            pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
+            predictions = sess.run(pool_3_tensor,
+                                   {'DecodeJpeg/contents:0': image_data})
+        except: # assume png
+            try:
+                png_fname = new_fname + '.png'
+                shutil.move(new_fname, png_fname)
+                print(png_fname)
+                image = imread(png_fname) #Image.open(new_fname)
+                image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
+                pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
+                predictions = sess.run(pool_3_tensor,
+                                       {'DecodeJpeg:0': image_data})
+            except:
+                filetype = subprocess.Popen(["file", png_fname], stdout=subprocess.PIPE).stdout.read()
+                print('Expected PNG/JPEG, received:  {}'.format(filetype))
+                raise
+
         features[ind, :] = np.squeeze(predictions)
         if os.path.exists(new_fname):
             os.remove(new_fname)
