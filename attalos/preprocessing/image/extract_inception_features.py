@@ -10,6 +10,7 @@ import tarfile
 import shutil
 import tempfile
 import subprocess
+import re
 
 import numpy as np
 from scipy.misc import imread
@@ -75,18 +76,22 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
             pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
             predictions = sess.run(pool_3_tensor,
                                    {'DecodeJpeg/contents:0': image_data})
-        except: # assume png
+        except: # Not a jpeg, use file to find extension, try to read with scipy
             try:
-                png_fname = new_fname + '.png'
-                shutil.move(new_fname, png_fname)
-                image = imread(png_fname) #Image.open(new_fname)
+                filetype = subprocess.Popen(["file", new_fname], stdout=subprocess.PIPE).stdout.read()
+                extension = re.search(r':[ ]+([A-Z]+) ', filetype).group(1).lower()
+                new_new_fname = new_fname + '.{}'.format(extension)
+                print('Renaming to {}'.format(new_new_fname))
+                shutil.move(new_fname, new_new_fname)
+                image = imread(new_new_fname) #Image.open(new_fname)
                 image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
                 pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
                 predictions = sess.run(pool_3_tensor,
                                        {'DecodeJpeg:0': image_data})
             except:
-                filetype = subprocess.Popen(["file", png_fname], stdout=subprocess.PIPE).stdout.read()
+                filetype = subprocess.Popen(["file", new_new_fname], stdout=subprocess.PIPE).stdout.read()
                 print('Expected PNG/JPEG, received:  {}'.format(filetype))
+                print('Image data size: {}'.format(np.array(image).size()))
                 raise
 
         features[ind, :] = np.squeeze(predictions)
