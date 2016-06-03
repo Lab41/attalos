@@ -68,7 +68,6 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
         dataset.extract_image_to_location(img_record.id, new_fname)
 
         try:
-            print(new_fname)
             if not tf.gfile.Exists(new_fname):
                 tf.logging.fatal('File does not exist %s', new_fname)
             image_data = tf.gfile.FastGFile(new_fname, 'rb').read()
@@ -80,7 +79,6 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
             try:
                 png_fname = new_fname + '.png'
                 shutil.move(new_fname, png_fname)
-                print(png_fname)
                 image = imread(png_fname) #Image.open(new_fname)
                 image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
                 pool_3_tensor = sess.graph.get_tensor_by_name('pool_3:0')
