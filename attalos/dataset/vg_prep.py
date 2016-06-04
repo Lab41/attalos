@@ -180,9 +180,15 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
             RecordMetadata: Information about the next key
         """
+        if self.images_file_handle is None:
+            self.images_file_handle = zipfile.ZipFile(self.images_filename)
+
         for key in sorted(self.list_keys()):
             if 'VG_100K' in self.item_info[key]['url']:
-                yield self.get_key(key)
+                potential_key = self.get_key(key)
+                file_size = self.images_file_handle.getinfo(potential_key.image_name).file_size
+                if file_size != 0:
+                    yield potential_key
 
         raise StopIteration()
 
