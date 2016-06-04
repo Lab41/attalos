@@ -110,7 +110,7 @@ def save_hdf5(local_working_dir, hdf5_fname, image_features, image_ids):
 
     fOut = h5py.File(temp_fname, 'w')
     fOut.create_dataset('ids', data=image_ids)
-    fOut.create_dataset('feats', data=image_features, dtype=np.float32, compression='gzip')
+    fOut.create_dataset('feats', data=image_features, dtype=np.float32)
     fOut.close()
 
     shutil.move(temp_fname, hdf5_fname)
