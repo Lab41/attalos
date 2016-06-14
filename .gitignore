@@ -229,3 +229,7 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Domino Data Labs
+dominostats.json
+.domino*
