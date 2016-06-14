@@ -1,4 +1,4 @@
-FROM l41-caffe-keras-tf 
+FROM l41-tensorflow
 
 EXPOSE 8888
 
