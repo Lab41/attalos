@@ -3,8 +3,8 @@ MAINTAINER Alex Gude
 
 RUN apt-get install module-init-tools -y
 # Mount the installer to Docker
-ENV NVIDIA_DRIVER_VERSION 352.93
-LABEL com.nvidia.driver.version="352.93"
+ENV NVIDIA_DRIVER_VERSION 352.68
+LABEL com.nvidia.driver.version="352.68"
 RUN apt-get update && apt-get install -y --no-install-recommends --force-yes \
 	    wget && \
 	    rm -rf /var/lib/apt/lists/*
