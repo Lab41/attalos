@@ -1,4 +1,4 @@
-FROM l41-keras-base
+FROM l41-nvidia-base
 
 # Install git, bc and dependencies
 RUN apt-get update && apt-get install -y \
@@ -38,8 +38,3 @@ ENV PYTHONPATH=/root/caffe/python:$PYTHONPATH
 
 # Set ~/caffe as working directory
 WORKDIR /root/caffe
-
-# Install Tensorflow
-# --ignore-installed is required when using Anaconda per: https://github.com/tensorflow/tensorflow/issues/622#issuecomment-170309570
-RUN pip install --upgrade --ignore-installed https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl && \
-    pip install --upgrade pandas
