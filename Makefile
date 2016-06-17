@@ -4,6 +4,7 @@ build: depends
 	docker build -t l41-keras -f Dockerfile.keras .
 	docker build -t l41-tensorflow -f Dockerfile.tf .
 	docker build -t l41-caffe -f Dockerfile.caffe .
+	docker build -t l41-domino-tensorflow -f Dockerfile.domino .
 
 attalos-bash: depends
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
