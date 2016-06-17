@@ -70,7 +70,7 @@ def main():
                       type=str,
                       help='Text Feature file')
     parser.add_argument('--output_tag_transformer_file',
-                      dest='tag_transformer_file',
+                      dest='dictionary_mapping_file',
                       type=str,
                       help='Tag transformer dictionary file')
 
