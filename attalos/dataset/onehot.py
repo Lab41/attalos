@@ -35,6 +35,20 @@ class OneHot(TextTransformer):
         for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
 
+    def get_multiple(self, tags):
+        """
+        Get the multi-hot encoding for a list of tags
+        Args:
+            tags (list): List of tags for which to return a multi-hot encoding
+
+        Returns:
+            mulithot_feats (ndarray): Returns a multi-hot numpy array
+        """
+        multihot_feats = np.zeros(self.num_keys)
+        for tag in tags:
+            multihot_feats += self.__getitem__(tag)
+        return multihot_feats
+
     def __getitem__(self, item):
         index = self.data_mapping[item]
         arr = np.zeros(self.num_keys)
