@@ -77,7 +77,7 @@ class IAPRTC12DatasetPrep(DatasetPrep):
         if split.lower() == 'train':
             self.split = SplitType.TRAIN
         elif split.lower() == 'test':
-            raise NotImplementedError('Split type not yet implemented')
+            self.split = SplitType.TEST
         elif split.lower() == 'val':
             raise NotImplementedError('Split type not yet implemented')
         else:
@@ -122,8 +122,8 @@ class IAPRTC12DatasetPrep(DatasetPrep):
 
         # Load the ID files so that we know what tags are on the various images
         id_files = {
-            "train": "iaprtc12_train_list.txt",
-            "test": "iaprtc12_test_list.txt",
+            SplitType.TRAIN: "iaprtc12_train_list.txt",
+            SplitType.TEST: "iaprtc12_test_list.txt",
         }
         ids = {}
         for split, file in six.iteritems(id_files):
@@ -136,8 +136,8 @@ class IAPRTC12DatasetPrep(DatasetPrep):
 
         # Load the vectors
         vec_files = {
-            "train": "iaprtc12_train_annot.hvecs",
-            "test": "iaprtc12_test_annot.hvecs",
+            SplitType.TRAIN: "iaprtc12_train_annot.hvecs",
+            SplitType.TEST: "iaprtc12_test_annot.hvecs",
         }
         word_vectors = {}
         for split, file in six.iteritems(vec_files):
@@ -145,16 +145,15 @@ class IAPRTC12DatasetPrep(DatasetPrep):
             word_vectors[split] = self.parse_LEAR_annotation_file(f)
 
         # Iterate over the
-        for split in ids:
-            uniq_ids = ids[split]
-            vecs = word_vectors[split]
-            for i, uniq_id in enumerate(uniq_ids):
-                vec = vecs[i]
-                # There are a few missing images/annotations, so we skip those cases
-                try:
-                    self.item_info[uniq_id]["tags"] = list(word_map[vec == 1])
-                except KeyError:
-                    continue
+        uniq_ids = ids[self.split]
+        vecs = word_vectors[self.split]
+        for i, uniq_id in enumerate(uniq_ids):
+            vec = vecs[i]
+            # There are a few missing images/annotations, so we skip those cases
+            try:
+                self.item_info[uniq_id]["tags"] = list(word_map[vec == 1])
+            except KeyError:
+                continue
 
     def __open_tarball(self):
         """ Open the tarballs and save the file handles, but only if it is not
@@ -178,6 +177,16 @@ class IAPRTC12DatasetPrep(DatasetPrep):
             if f.endswith('.jpg'):
                 f_id = self.get_id_from_path(f)
                 self.image_files[f_id] = f
+    
+    def __remove_images_without_tags(self):
+        """ Delete info about files that don't have tags. This also removes files from the wrong split"""
+        keys_to_delete = []
+        for f_id in self.item_info:
+            if len(self.item_info[f_id]['tags']) == 0:
+                keys_to_delete.append(f_id)
+        for f_id in keys_to_delete:
+            del self.item_info[f_id]
+
 
     def __load_metadata(self):
         """Load the filenames, ids, tags, and captions into the metadata
@@ -193,6 +202,7 @@ class IAPRTC12DatasetPrep(DatasetPrep):
 
         self.__load_annotations()
         self.__load_tags()
+        self.__remove_images_without_tags()
 
     def download_dataset(self):
         """
@@ -241,7 +251,7 @@ class IAPRTC12DatasetPrep(DatasetPrep):
             key: record key t
 
         """
-        fOut = open(desired_file_path, 'wb')
+        fOut = open(location, 'wb')
         fOut.write(self.extract_image_by_key(key))
         fOut.close()
 

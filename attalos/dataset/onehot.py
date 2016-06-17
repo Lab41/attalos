@@ -3,33 +3,51 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from texttransformer import TextTransformer
+from attalos.dataset.texttransformer import TextTransformer
 
 class OneHot(TextTransformer):
+    """
+    Transforms tags from a dataset iterator into into a one-hot encoding
+    """
+    def __init__(self, dataset, dictionary_file=None):
+        """
+        Initialize OneHot encoding
+        Args:
+            dataset (attalos.dataset.dataset): A dataset iterator
+            dictionary_file: A saved dictionary file
 
-    def __init__(self, dictionary_file=None):
+        Returns:
 
+        """
         super(OneHot, self).__init__(dictionary_file)
         if dictionary_file:
             self.num_keys = len(super(OneHot, self).keys())
+        else:
+            self.data_mapping = {}
+            self.create_data_mapping(dataset)
 
-    def create_data_mapping(self, data_prep):
-        keys = set()
-        count = 0
-        total_tags = 0
-        for record in data_prep:
-            count += 1
-            for tag in record.tags:
-                keys.add(tag)
-            total_tags += len(record.tags)
-        print('Count: {}'.format(count))
-        print('Tags: {}'.format(total_tags))
-        print('Length: {}'.format(len(keys)))
-        self.num_keys = len(keys)
-        self.data_mapping = {}
-        for i, key in enumerate(keys):
+    def create_data_mapping(self, dataset):
+        dataset_tags = set()
+        for tags in dataset.text_feats.values():
+            dataset_tags.update(tags)
+
+        self.num_keys = len(dataset_tags)
+        for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
-        print(self.data_mapping)
+
+    def get_multiple(self, tags):
+        """
+        Get the multi-hot encoding for a list of tags
+        Args:
+            tags (list): List of tags for which to return a multi-hot encoding
+
+        Returns:
+            mulithot_feats (ndarray): Returns a multi-hot numpy array
+        """
+        multihot_feats = np.zeros(self.num_keys)
+        for tag in tags:
+            multihot_feats += self.__getitem__(tag)
+        return multihot_feats
 
     def __getitem__(self, item):
         index = self.data_mapping[item]
@@ -40,52 +58,31 @@ class OneHot(TextTransformer):
 
 def main():
     import argparse
+    from attalos.dataset.dataset import Dataset
 
-
-    parser = argparse.ArgumentParser(description='Extract image features using Inception model.')
-    parser.add_argument('--dataset_dir',
-                      dest='dataset_dir',
+    parser = argparse.ArgumentParser(description='Test One-Hot Encoding')
+    parser.add_argument('--image_feature_file',
+                      dest='image_feature_file',
                       type=str,
-                      help='Directory with input images')
-    parser.add_argument('--dataset_type',
-                      dest='dataset_type',
-                      default='mscoco',
-                      choices=['mscoco', 'visualgenome', 'iaprtc'])
-    parser.add_argument('--split',
-                      dest='split',
-                      default='train',
-                      choices=['train', 'test', 'val'])
-    parser.add_argument('--dictionary_mapping_file',
+                      help='Image Feature file')
+    parser.add_argument('--text_feature_file',
+                      dest='text_feature_file',
+                      type=str,
+                      help='Text Feature file')
+    parser.add_argument('--output_tag_transformer_file',
                       dest='dictionary_mapping_file',
                       type=str,
-                      help='Text dictionary_mapping_file file')
+                      help='Tag transformer dictionary file')
+
+
     args = parser.parse_args()
-    print('Loading Datset Prep')
-    if args.dataset_type == 'mscoco':
-        print('Processing MSCOCO Data')
-        from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
-        dataset_prep = MSCOCODatasetPrep(args.dataset_dir, split=args.split)
-    elif args.dataset_type == 'visualgenome':
-        print('Processing Visual Genome Data')
-        from attalos.dataset.vg_prep import VGDatasetPrep
-        dataset_prep = VGDatasetPrep(args.dataset_dir, split=args.split)
-    elif args.dataset_type == 'iaprtc':
-        print('Processing IAPRTC-12 data')
-        from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
-        dataset_prep = IAPRTC12DatasetPrep(args.dataset_dir, split=args.split)
-    else:
-        raise NotImplementedError('Dataset type {} not supported'.format(args.dataset_type))
+    dataset = Dataset(args.image_feature_file, args.text_feature_file)
 
     print('Creating One hot')
-    oh = OneHot()
-    oh.create_data_mapping(dataset_prep)
-
-    key = dataset_prep.list_keys()[5]
-    record = dataset_prep.get_key(key)
-    print(record.tags[0])
-    print(oh[record.tags[0]].size)
-    print(np.sum(oh[record.tags[0]]))
+    oh = OneHot(dataset)
+    print('OneHot Encoding with {} keys'.format(oh.num_keys))
     oh.save_data_mapping(args.dictionary_mapping_file)
+
 
 if __name__ == '__main__':
     main()
