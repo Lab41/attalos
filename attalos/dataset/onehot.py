@@ -9,11 +9,11 @@ class OneHot(TextTransformer):
     """
     Transforms tags from a dataset iterator into into a one-hot encoding
     """
-    def __init__(self, dataset, dictionary_file=None):
+    def __init__(self, datasets, dictionary_file=None):
         """
         Initialize OneHot encoding
         Args:
-            dataset (attalos.dataset.dataset): A dataset iterator
+            dataset (list(attalos.dataset.dataset)): A list of dataset iterators
             dictionary_file: A saved dictionary file
 
         Returns:
@@ -24,12 +24,13 @@ class OneHot(TextTransformer):
             self.num_keys = len(super(OneHot, self).keys())
         else:
             self.data_mapping = {}
-            self.create_data_mapping(dataset)
+            self.create_data_mapping(datasets)
 
-    def create_data_mapping(self, dataset):
+    def create_data_mapping(self, datasets):
         dataset_tags = set()
-        for tags in dataset.text_feats.values():
-            dataset_tags.update(tags)
+        for dataset in datasets:
+            for tags in dataset.text_feats.values():
+                dataset_tags.update(tags)
 
         self.num_keys = len(dataset_tags)
         for i, key in enumerate(dataset_tags):
