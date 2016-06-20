@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import numpy as np
 from attalos.dataset.texttransformer import TextTransformer
 
@@ -13,7 +14,7 @@ class OneHot(TextTransformer):
         """
         Initialize OneHot encoding
         Args:
-            dataset (list(attalos.dataset.dataset)): A list of dataset iterators
+            dataset (attalos.dataset.dataset): A  dataset iterator (or list of iterators)
             dictionary_file: A saved dictionary file
 
         Returns:
@@ -28,7 +29,12 @@ class OneHot(TextTransformer):
 
     def create_data_mapping(self, datasets):
         dataset_tags = set()
-        for dataset in datasets:
+        if isinstance(datasets, collections.Iterable):
+            iterable_datasets = datasets
+        else:
+            iterable_datasets = [datasets]
+
+        for dataset in iterable_datasets:
             for tags in dataset.text_feats.values():
                 dataset_tags.update(tags)
 
