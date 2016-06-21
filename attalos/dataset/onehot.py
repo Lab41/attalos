@@ -22,7 +22,7 @@ class OneHot(TextTransformer):
         """
         super(OneHot, self).__init__(dictionary_file)
         if dictionary_file:
-            self.num_keys = len(super(OneHot, self).keys())
+            self.vocab_size = len(super(OneHot, self).keys())
         else:
             self.data_mapping = {}
             self.create_data_mapping(datasets)
@@ -38,7 +38,7 @@ class OneHot(TextTransformer):
             for tags in dataset.text_feats.values():
                 dataset_tags.update(tags)
 
-        self.num_keys = len(dataset_tags)
+        self.vocab_size = len(dataset_tags)
         for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
 
@@ -51,16 +51,17 @@ class OneHot(TextTransformer):
         Returns:
             mulithot_feats (ndarray): Returns a multi-hot numpy array
         """
-        multihot_feats = np.zeros(self.num_keys)
+        multihot_feats = np.zeros(self.vocab_size)
         for tag in tags:
             multihot_feats += self.__getitem__(tag)
         return multihot_feats
 
     def __getitem__(self, item):
         index = self.data_mapping[item]
-        arr = np.zeros(self.num_keys)
+        arr = np.zeros(self.vocab_size)
         arr[index] = 1
         return arr
+
 
 
 def main():
@@ -87,7 +88,7 @@ def main():
 
     print('Creating One hot')
     oh = OneHot(dataset)
-    print('OneHot Encoding with {} keys'.format(oh.num_keys))
+    print('OneHot Encoding with {} keys'.format(oh.vocab_size))
     oh.save_data_mapping(args.dictionary_mapping_file)
 
 
