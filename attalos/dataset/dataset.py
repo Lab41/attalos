@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import json
 import gzip
+import six
 import numpy as np
 
 import h5py
@@ -96,11 +97,11 @@ class Dataset(object):
     def get_num_imgs(self):
         return self.num_images
 
-    def get_iterator(self):
-        for item_index in range(self.num_images):
-            yield self.get_index(item_index)
-        raise StopIteration()
+    def __getitem__(self, item):
+        return self.get_index(item)
 
+    def __iter__(self):
+        return iter(range(self.num_images))
 
 
 def main():
