@@ -4,8 +4,8 @@ from __future__ import print_function
 
 import json
 import gzip
-import numpy as np
 
+import numpy as np
 import h5py
 
 
@@ -17,6 +17,7 @@ class Dataset(object):
     """
 
     TEXT_FEAT_TYPES_AVAILABLE = set(['tags', 'captions'])
+
     def __init__(self, img_feature_filename,
                  text_feature_filename,
                  text_feat_type="tags",
@@ -39,7 +40,7 @@ class Dataset(object):
         self.image_feats = self.img_feature_file['feats']
         self.image_ids = self.img_feature_file['ids']
         self.img_feat_size = len(self.image_feats[0,:]) # get length of the first feature vector
-        self.num_images = len(self.image_ids)
+        self._num_images = len(self.image_ids)
 
     def __load_text_features(self):
         if self.text_feature_filename.endswith('.gz'):
@@ -47,6 +48,25 @@ class Dataset(object):
         else:
             input_file = open(self.text_feature_filename)
         self.text_feats = json.load(input_file)[self.text_feat_type]
+
+    def get_index(self, item_index):
+        # Transform image index to image_id
+        item_id = self.image_ids[item_index]
+        # Make sure our id's are strings
+        if not isinstance(item_id, str):
+            item_id = str(item_id)
+
+        img_feat = self.image_feats[item_index, :]
+        # If we are supposed to transform tags using TextTransformer then transform tags
+        if self.text_feat_type == 'tags' and self.tag_transformer is not None:
+            text_feat = []
+            for feat in self.text_feats[item_id]:
+                feat = str(feat)
+                text_feat.append(self.tag_transformer[feat])
+        else:
+            text_feat = self.text_feats[item_id]
+
+        return img_feat, text_feat
 
     def get_next_batch(self, batch_size):
         """
@@ -59,7 +79,7 @@ class Dataset(object):
             text_feats: List of text features (optionally transformed using tag_transformer)
         """
         # Get random batch of item ids to extract
-        items_in_batch = np.random.randint(0, self.num_images, batch_size)
+        items_in_batch = np.random.randint(0, self._num_images, batch_size)
 
         # Initialize image/text return objects
         img_feats = np.zeros((batch_size, self.img_feat_size))
@@ -67,27 +87,22 @@ class Dataset(object):
 
         # For each item to extract from the batch
         for i, item_index in enumerate(items_in_batch):
-            # Transform image index to image_id
-            item_id = self.image_ids[item_index]
-            # Make sure our id's are strings
-            if not isinstance(item_id, str):
-                item_id = str(item_id)
+            img_feat, text_feat = self.get_index(item_index)
 
             # Add image features to output
-            img_feats[i, :] = self.image_feats[item_index, :]
-
-            # If we are supposed to transform tags using TextTransformer then transform tags
-            if self.text_feat_type == 'tags' and self.tag_transformer is not None:
-                text_feat = []
-                for feat in self.text_feats[item_id]:
-                    feat = str(feat)
-                    text_feat.append(self.tag_transformer[feat])
-            else:
-                text_feat = self.text_feats[item_id]
+            img_feats[i, :] = img_feat
             text_feats.append(text_feat)
         return img_feats, text_feats
 
+    @property
+    def num_images(self):
+        return self._num_images
 
+    def __getitem__(self, item):
+        return self.get_index(item)
+
+    def __iter__(self):
+        return iter(range(self._num_images))
 
 
 def main():

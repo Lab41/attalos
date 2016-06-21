@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import numpy as np
 from attalos.dataset.texttransformer import TextTransformer
 
@@ -9,11 +10,11 @@ class OneHot(TextTransformer):
     """
     Transforms tags from a dataset iterator into into a one-hot encoding
     """
-    def __init__(self, dataset, dictionary_file=None):
+    def __init__(self, datasets, dictionary_file=None):
         """
         Initialize OneHot encoding
         Args:
-            dataset (attalos.dataset.dataset): A dataset iterator
+            dataset (attalos.dataset.dataset): A  dataset iterator (or list of iterators)
             dictionary_file: A saved dictionary file
 
         Returns:
@@ -21,17 +22,23 @@ class OneHot(TextTransformer):
         """
         super(OneHot, self).__init__(dictionary_file)
         if dictionary_file:
-            self.num_keys = len(super(OneHot, self).keys())
+            self.vocab_size = len(super(OneHot, self).keys())
         else:
             self.data_mapping = {}
-            self.create_data_mapping(dataset)
+            self.create_data_mapping(datasets)
 
-    def create_data_mapping(self, dataset):
+    def create_data_mapping(self, datasets):
         dataset_tags = set()
-        for tags in dataset.text_feats.values():
-            dataset_tags.update(tags)
+        if isinstance(datasets, collections.Iterable):
+            iterable_datasets = datasets
+        else:
+            iterable_datasets = [datasets]
 
-        self.num_keys = len(dataset_tags)
+        for dataset in iterable_datasets:
+            for tags in dataset.text_feats.values():
+                dataset_tags.update(tags)
+
+        self.vocab_size = len(dataset_tags)
         for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
 
@@ -44,16 +51,17 @@ class OneHot(TextTransformer):
         Returns:
             mulithot_feats (ndarray): Returns a multi-hot numpy array
         """
-        multihot_feats = np.zeros(self.num_keys)
+        multihot_feats = np.zeros(self.vocab_size)
         for tag in tags:
             multihot_feats += self.__getitem__(tag)
         return multihot_feats
 
     def __getitem__(self, item):
         index = self.data_mapping[item]
-        arr = np.zeros(self.num_keys)
+        arr = np.zeros(self.vocab_size)
         arr[index] = 1
         return arr
+
 
 
 def main():
@@ -80,7 +88,7 @@ def main():
 
     print('Creating One hot')
     oh = OneHot(dataset)
-    print('OneHot Encoding with {} keys'.format(oh.num_keys))
+    print('OneHot Encoding with {} keys'.format(oh.vocab_size))
     oh.save_data_mapping(args.dictionary_mapping_file)
 
 
