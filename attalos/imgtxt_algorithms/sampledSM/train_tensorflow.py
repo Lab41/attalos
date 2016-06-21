@@ -61,10 +61,9 @@ def run_the_net(
 
     # Set up negative samples
     word_count = np.zeros(onehot_encoding.vocab_size)
-    for dataset in (train_dataset, test_dataset):
-        for item_index in dataset:
-            img, text = dataset[item_index]
-            word_count += onehot_encoding.get_multiple(text)
+    for item_index in train_dataset:
+        img, text = train_dataset[item_index]
+        word_count += onehot_encoding.get_multiple(text)
 
     negative_sample_generator = negsamp.NegativeSampler(word_count)
 
