@@ -48,6 +48,25 @@ class Dataset(object):
             input_file = open(self.text_feature_filename)
         self.text_feats = json.load(input_file)[self.text_feat_type]
 
+    def get_index(self, item_index):
+        # Transform image index to image_id
+        item_id = self.image_ids[item_index]
+        # Make sure our id's are strings
+        if not isinstance(item_id, str):
+            item_id = str(item_id)
+
+        img_feat = self.image_feats[item_index, :]
+        # If we are supposed to transform tags using TextTransformer then transform tags
+        if self.text_feat_type == 'tags' and self.tag_transformer is not None:
+            text_feat = []
+            for feat in self.text_feats[item_id]:
+                feat = str(feat)
+                text_feat.append(self.tag_transformer[feat])
+        else:
+            text_feat = self.text_feats[item_id]
+
+        return img_feat, text_feat
+
     def get_next_batch(self, batch_size):
         """
         Get a batch of image and text features (text features will be optionally encoded using the tagtransformer
@@ -67,26 +86,20 @@ class Dataset(object):
 
         # For each item to extract from the batch
         for i, item_index in enumerate(items_in_batch):
-            # Transform image index to image_id
-            item_id = self.image_ids[item_index]
-            # Make sure our id's are strings
-            if not isinstance(item_id, str):
-                item_id = str(item_id)
+            img_feat, text_feat = self.get_index(item_index)
 
             # Add image features to output
-            img_feats[i, :] = self.image_feats[item_index, :]
-
-            # If we are supposed to transform tags using TextTransformer then transform tags
-            if self.text_feat_type == 'tags' and self.tag_transformer is not None:
-                text_feat = []
-                for feat in self.text_feats[item_id]:
-                    feat = str(feat)
-                    text_feat.append(self.tag_transformer[feat])
-            else:
-                text_feat = self.text_feats[item_id]
+            img_feats[i, :] = img_feat
             text_feats.append(text_feat)
         return img_feats, text_feats
 
+    def get_num_imgs(self):
+        return self.num_images
+
+    def get_iterator(self):
+        for item_index in range(self.num_images):
+            yield self.get_index(item_index)
+        raise StopIteration()
 
 
 
