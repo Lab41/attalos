@@ -4,16 +4,11 @@ from __future__ import print_function
 
 import math
 import pickle
-
 import numpy as np
 import scipy as sp
 
 from sklearn import metrics
-from sklearn.feature_extraction.text import TfidfTransformer
-
 from attalos.dataset.onehot import OneHot
-
-TAG_INDEX = 2
 
 
 class Eval(object):
@@ -36,7 +31,7 @@ class Eval(object):
         self.ntags = predictions.shape[1]
         
         self.metrics = [self.w_precision, self.w_recall, self.coverage_error, 
-                            self.ranking_precision, self.ranking_loss, self.roc_auc]
+                        self.ranking_precision, self.ranking_loss, self.roc_auc]
 
     def print_evaluation(self):
         print('---Evaluation---')
@@ -76,11 +71,6 @@ class Eval(object):
         Assumes:
             each column has at least two values (i.e. each example tag appears more than once)
         """
-        #scores = np.empty((N_TAGS, 1))
-        #for image_n in range(0, N_TAGS):
-        #    score = metrics.roc_auc_score(self.ground_truth[:,image_n], self.predictions_raw[:,image_n])
-        #    scores[image_n] = score
-        #self.roc_auc = np.average(scores)
         try:
             self.roc_auc = metrics.roc_auc_score(self.ground_truth, self.predictions_raw)
             return 'Area Under Curve [0, 1, where 0.5 = chance]: ' + str(self.roc_auc)
@@ -119,15 +109,6 @@ class Eval(object):
         self.spearman = np.average(scores)
         return 'Average Spearman\'s coefficient is: ' + str(self.spearman)
 
-    """
-    GRAVEYARD
-
-    def tf_idf(self):
-        transformer = TfidfTransformer().fit(self.ground_truth)
-        tf_idfs = transformer.transform(self.ground_truth)
-        print(tf_idfs)
-    """
-
     def kendall_tau(self):
         scores = np.empty((self.ntrials, 1)) 
         for image_n in range(0, self.ntrials):
@@ -136,6 +117,7 @@ class Eval(object):
             print("kt value = " + str(kt_value))
         self.kendall_tau = np.average(scores)
         return 'Kendall\'s tau [-1, 1]: ' + str(self.kendall_tau)
+
 
 def main():
     import argparse
@@ -153,7 +135,7 @@ def main():
     args = parser.parse_args()
 
     #Structures should have been saved to file via pickle.dump()
-    """evaluation_dataset_file = open(args.evaluation_dataset_filename, "rb")
+    evaluation_dataset_file = open(args.evaluation_dataset_filename, "rb")
     prediction_matrix_file = open(args.prediction_matrix_filename, "rb")
 
     evaluation_dataset = pickle.load(evaluation_dataset_file)
@@ -164,7 +146,7 @@ def main():
 
     evaluated = TestingEval(evaluation_dataset, prediction_matrix)
 
-    evaluated.print_evaluation()"""
+    evaluated.print_evaluation()
 
 if __name__ == '__main__':
     main()
