@@ -8,16 +8,17 @@ from __future__ import division
 
 import numpy as np
 import tensorflow as tf
+from zipfile import ZipFile
 
 class ImageProducer(object):
 
-    def __init__(self, img_paths, labels, **kwargs):
+    def __init__(self, img_paths, labels=None, **kwargs):
         """
         A class for loading input images. Images will be transformed
         to the specified img_shape.
 
         :param img_paths: an iterable containing jpg paths
-        :param labels: an iterable with string labels
+        :param labels: an iterable with string labels. Default is None.
         :param n_processes: number of threads to use to run enqueue data. default 4
         :param batch_size: number of samples to load. default 128
         :param img_shape: shape of the input image. Default is (224, 224, 3)
@@ -29,30 +30,29 @@ class ImageProducer(object):
         # Number of threads to use to load data
         self.n_processes = kwargs.pop('n_processes', 4)
 
-        self.batch_size = kwargs.pop('batch_size', 128)
+        self.batch_size = kwargs.pop('batch_size', min(self.num_images, 128))
         self.img_shape = kwargs.pop("img_shape", (224, 224, 3))
 
         # Queue to hold the input image paths and labels
-        self.data_queue = tf.RandomShuffleQueue(capacity=self.num_images, min_after_dequeue=1,
-                                                dtypes=[tf.string, tf.string],
-                                                name="data_queue")
-
+        self.data_queue = tf.FIFOQueue(capacity=self.num_images, dtypes=[tf.int32, tf.string],
+                                       name="data_queue")
+        idx = tf.range(self.num_images)
         # Load the queue
-        self.data_enqueue_op = self.data_queue.enqueue_many([self.labels, self.img_paths])
+        self.data_enqueue_op = self.data_queue.enqueue_many([idx, self.img_paths])
 
         # Close queue since we won't add addtional items
         self.closed_queue = self.data_queue.close()
 
         # load and crop input images
-        label, processed_image = self.process()
+        img_idx, processed_image = self.process()
 
         # Another queue to hold the image data
         process_queue = tf.FIFOQueue(capacity=np.ceil(self.num_images/self.n_processes),
-                                     dtypes=[tf.string, tf.float32],
+                                     dtypes=[tf.int32, tf.float32],
                                      shapes=[(), self.img_shape])
 
         # put all processed images and labels into another queue
-        enqueue_process = process_queue.enqueue([label, processed_image])
+        enqueue_process = process_queue.enqueue([img_idx, processed_image])
 
         # queue to get data out for models
         self.dequeue_op = process_queue.dequeue_many(self.batch_size)
@@ -67,12 +67,12 @@ class ImageProducer(object):
         """
         Method to load image data. If you need additional transforms, this is where is should happen
 
-        Returns: label, image
+        Returns: index, image
         """
-        label, img_path = self.data_queue.dequeue()
+        idx, img_path = self.data_queue.dequeue()
         img = self.load_image(img_path)
         resized = tf.image.resize_images(img, self.img_shape[0], self.img_shape[1])
-        return label, tf.to_float(resized)
+        return idx, tf.to_float(resized)
 
     def load_image(self, img_path):
         """
@@ -83,6 +83,15 @@ class ImageProducer(object):
 
         Returns: decoded jpg.
 
+        """
+        # TODO Images come in from a zipfile. We don't want to write the to temp space
+        # Proposed solution
+        """
+        from zipfile import ZipFile
+        archive = Zipfile("myarchive.zip", "r")
+        jpgs = filter(lambda x: x.endswith("jpg"), archive.namelist())
+        image_data = archive.read(jpgs[0]) # read one at a time
+        return tf.image.decode_jpeg(image_data, channels=3)
         """
         raw_data = tf.read_file(img_path)
         return tf.image.decode_jpeg(raw_data, channels=self.img_shape[-1])
@@ -104,12 +113,31 @@ class ImageProducer(object):
         Loads a batch of data
 
         :param sess: a tensorflow session
-        :return: lables, images
+        :return: lables, images. If no labels are provided then index, images are returned
         """
-        labels, images = sess.run(self.dequeue_op)
-        return labels, images
+        indices, images = sess.run(self.dequeue_op)
+        if self.labels is not None:
+            labels = [self.labels[idx] for idx in indices]
+            return labels, images
+        return indices, images
 
     @property
     def num_images(self):
         return len(self.img_paths)
+
+
+class ZipImageProducer(ImageProducer):
+    def __init__(self, archive, *args, **kwargs):
+        super(ZipImageProducer, self).__init__(*args, **kwargs)
+        self.archive = ZipFile(archive, 'r')
+
+    def load_image(self, img_path):
+        raw_data = self.archive.read(img_path)
+        raw_data_tensor = tf.convert_to_tensor(raw_data, dtype=tf.string)
+        return tf.image.decode_jpeg(raw_data_tensor, channels=self.img_shape[-1])
+
+    def __del__(self):
+        self.archive.close()
+
+
 
