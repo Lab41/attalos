@@ -8,15 +8,11 @@ build: depends
 
 attalos-bash: depends
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
-        	   --device /dev/nvidia0:/dev/nvidia0 -v /home/andreww/attalos:/attalos \
-        	   -v /home/andreww/caffe-tensorflow:/caffe-tensorflow \
-        	   -v /data/fs4:/data/fs4 -v /local_data:/local_data -it l41-tensorflow /bin/bash
+        	   --device /dev/nvidia0:/dev/nvidia0 -it l41-tensorflow /bin/bash
 
 attalos-caffe: depends
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
-        	   --device /dev/nvidia0:/dev/nvidia0 -v /home/andreww/attalos:/attalos \
-        	    -v /data/fs4:/data/fs4 -v /local_data:/local_data -v /home/andreww/caffe-tensorflow:/caffe-tensorflow \
-        	    -it l41-caffe  /bin/bash
+        	   --device /dev/nvidia0:/dev/nvidia0 -it l41-caffe  /bin/bash
 
 notebook: depends
 	docker build -t l41-attalos-notebook -f Dockerfile.notebook .
