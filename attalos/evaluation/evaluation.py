@@ -3,13 +3,10 @@ from __future__ import division
 from __future__ import print_function
 
 import math
-import pickle
 import numpy as np
 import scipy as sp
 
 from sklearn import metrics
-from attalos.dataset.onehot import OneHot
-
 
 class Eval(object):
     """
@@ -31,7 +28,7 @@ class Eval(object):
         self.ntags = predictions.shape[1]
         
         self.metrics = [self.w_precision, self.w_recall, self.coverage_error, 
-                        self.ranking_precision, self.ranking_loss, self.roc_auc]
+                        self.ranking_precision, self.ranking_loss, self.roc_auc, self.kendall_tau]
 
     def print_evaluation(self):
         print('---Evaluation---')
@@ -39,6 +36,9 @@ class Eval(object):
             print(metric())
 
     def m_precision(self):
+        """
+        Unweighted precision score, requires appearance of each label in the ground truth set
+        """
         try:
             self.m_precision = metrics.precision_score(self.ground_truth, self.predictions, average='macro')
         except UndefinedMetricWarning:
@@ -46,6 +46,9 @@ class Eval(object):
         return 'Precision (macro): ' + str(self.m_precision)
 
     def w_precision(self):
+        """
+        Weighted precision score, requires appearance of each label in the ground truth set
+        """
         try:
             self.w_precision = metrics.precision_score(self.ground_truth, self.predictions, average='weighted')
         except UndefinedMetricWarning:
@@ -53,6 +56,9 @@ class Eval(object):
         return 'Precision (weighted): ' + str(self.w_precision)
 
     def m_recall(self):
+        """
+        Unweighted recall score
+        """
         try:
             self.m_recall = metrics.recall_score(self.ground_truth, self.predictions, average='macro')
         except UndefinedMetricWarning:
@@ -60,6 +66,9 @@ class Eval(object):
         return 'Recall (macro): ' + str(self.m_recall)
 
     def w_recall(self):
+        """
+        Weighted recall score
+        """
         try:
             self.w_recall = metrics.recall_score(self.ground_truth, self.predictions, average='weighted')
         except UndefinedMetricWarning:
@@ -114,7 +123,6 @@ class Eval(object):
         for image_n in range(0, self.ntrials):
             [kt_value, p_value] = sp.stats.kendalltau(self.ground_truth[image_n], self.predictions_raw[image_n])
             scores[image_n] = kt_value
-            print("kt value = " + str(kt_value))
         self.kendall_tau = np.average(scores)
         return 'Kendall\'s tau [-1, 1]: ' + str(self.kendall_tau)
 
@@ -134,17 +142,10 @@ def main():
     
     args = parser.parse_args()
 
-    #Structures should have been saved to file via pickle.dump()
-    evaluation_dataset_file = open(args.evaluation_dataset_filename, "rb")
-    prediction_matrix_file = open(args.prediction_matrix_filename, "rb")
+    evaluation_dataset = np.loadtxt(evaluation_dataset_filename)
+    prediction_matrix = np.loadtxt(prediction_matrix_filename)
 
-    evaluation_dataset = pickle.load(evaluation_dataset_file)
-    prediction_matrix = pickle.load(prediction_matrix_file)
-
-    evaluation_dataset_file.close()
-    prediction_matrix_file.close()
-
-    evaluated = TestingEval(evaluation_dataset, prediction_matrix)
+    evaluated = Eval(evaluation_dataset, prediction_matrix)
 
     evaluated.print_evaluation()
 
