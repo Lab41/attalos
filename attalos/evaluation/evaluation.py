@@ -30,6 +30,17 @@ class Eval(object):
         self.metrics = [self.w_precision, self.w_recall, self.coverage_error, 
                         self.ranking_precision, self.ranking_loss, self.roc_auc, self.kendall_tau]
 
+    def top_k(self, k):
+        predictions = self.predictions_raw
+
+        for row in predictions:
+            top_indices = np.argsort(row)[-k:]
+            row.fill(0)
+            row[top_indices] = 1
+
+        self.predictions = predictions.astype(int)
+        print(self.predictions)
+
     def print_evaluation(self):
         print('---Evaluation---')
         for metric in self.metrics:
