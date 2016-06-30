@@ -233,3 +233,11 @@ Temporary Items
 # Domino Data Labs
 dominostats.json
 .domino*
+
+extras/
+Makefile
+
+*.npy
+.idea/
+weights/
+
