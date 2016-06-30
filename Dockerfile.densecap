@@ -61,3 +61,5 @@ RUN luarocks install cudnn
 
 # Set ~/torch as working directory
 WORKDIR /root/torch
+
+# adding this 
