@@ -236,3 +236,8 @@ dominostats.json
 
 extras/
 Makefile
+
+*.npy
+.idea/
+weights/
+
