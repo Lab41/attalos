@@ -5,70 +5,66 @@ import tensorflow as tf
 
 from attalos.dataset.dataset import Dataset
 from MinHeap import get_top_k
+from LocalEval import get_pr
 
 
 def tags_2_vec(tags, w2v_model=None):
     if len(tags) == 0:
         return np.zeros(300)
     else:
-        # return w2v_model[tags[0]]  # Only take 1st tag
-        # return w2v_model[tags[np.random.randint(0, len(tags), 1)]]  # Random tag
-        return np.sum([w2v_model[tag] for tag in tags], axis=0)/len(tags)  # Sum of tags
+        output = np.sum([w2v_model[tag] for tag in tags], axis=0)
+        return output / np.linalg.norm(output)
+
+
+def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model):
+    val_pred = regressor.predict(val_image_feats)
+    topks = []
+    for i in range(val_pred.shape[0]):
+        topk = get_top_k(val_pred[i, :]/np.linalg.norm(val_pred[i, :]), w2v_model, 5)
+        topks.append(topk)
+
+    return get_pr(val_text_tags, topks)
 
 
 def train_model(train_dataset,
                 test_dataset,
                 w2v_model,
-                learning_rate=.001,
                 batch_size=128,
-                num_epochs=200):
-    # Get a single batch to allow us to get feature vector sizes
-    image_feats, text_tags = train_dataset.get_next_batch(5)
-    word_feats = [tags_2_vec(tags, w2v_model) for tags in text_tags]
-    img_feat_size = image_feats.shape[1]
-    w2v_feat_size = word_feats[0].shape[0]
+                num_epochs=200,
+                save_path=None):
     num_items = train_dataset.num_images
 
     # Get validation data
+    # Get validation data
     val_image_feats, val_text_tags = test_dataset.get_next_batch(batch_size*10)
-    val_word_feats = [tags_2_vec(tags, w2v_model) for tags in val_text_tags]
-    val_batch_size = val_image_feats.shape[0]
+    for i in range(batch_size):
+        val_image_feats[i, :] = val_image_feats[i, :]/np.linalg.norm(val_image_feats[i, :])
 
     # Allocate GPU memory as needed (vs. allocating all the memory)
     config = tf.ConfigProto()
-    config.gpu_options.allow_growth=True
-    with tf.Graph().as_default():
-        # Placeholders for data
-        X = tf.placeholder(shape=(None, img_feat_size), dtype=tf.float32)
-        Y = tf.placeholder(shape=(None, w2v_feat_size), dtype=tf.float32)
+    config.gpu_options.allow_growth = True
 
-        # Two layer network
-        fc1 = tf.contrib.layers.fully_connected(X, 300, tf.nn.relu)
-        fc2 = tf.contrib.layers.fully_connected(fc1, 300, tf.sigmoid)
-        fc3 = tf.contrib.layers.fully_connected(fc2, 300, tf.sigmoid)
+    # Build regressor
+    regressor = tf.contrib.learn.TensorFlowDNNRegressor(hidden_units=[200,200],
+                                                        steps=10,
+                                                        continue_training=True,
+                                                        verbose=0)
 
-        # Mean Square error
-        loss = tf.reduce_sum(tf.square(Y-fc2))
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+    for epoch in range(num_epochs):
+        for batch in range(int(num_items/batch_size)):
+            image_feats, text_tags = train_dataset.get_next_batch(batch_size)
+            for i in range(batch_size):
+                image_feats[i, :] = image_feats[i, :]/ np.linalg.norm(image_feats[i, :])
+            word_feats = [tags_2_vec(tags, w2v_model) for tags in text_tags]
+            regressor.fit(image_feats, word_feats)
 
-        init = tf.initialize_all_variables()
-        with tf.Session(config=config) as sess:
-            sess.run(init)
-            for epoch in range(num_epochs):
-                for batch in range(int(num_items/batch_size)):
-                    image_feats, text_tags = train_dataset.get_next_batch(batch_size)
-                    word_feats = [tags_2_vec(tags, w2v_model) for tags in text_tags]
-                    sess.run(optimizer, feed_dict={X: image_feats, Y: word_feats})
+        precision, recall, f1 = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model)
 
-                cost, output_values = sess.run([loss, fc3], feed_dict={X: val_image_feats, Y: val_word_feats})
-                # Get most likely word and check to see if it is in set of tags for training data
-                # TODO: Move to a more reasonable metric
-                num_correct = 0
-                for i in range(output_values.shape[0]):
-                    topk = get_top_k(output_values[i, :], w2v_model, 5)
-                    if topk[0] in val_text_tags[i]:
-                        num_correct += 1
-                print('Epoch:', epoch, 'Cost:', cost, 'Percent Correct:', 100.0*num_correct/val_batch_size)
+        # Evaluate accuracy
+        print('Epoch:', epoch, 'Precision:', precision, 'Recall:', recall, 'F1:', f1)
+
+    if save_path:
+        regressor.save(save_path)
 
 
 def main():
@@ -125,12 +121,13 @@ def main():
         first_word = line[:line.find(' ')]
         if first_word in dataset_tags:
             line = line.strip().split(' ')
-            w2v_lookup[line[0]] = np.array([float(j) for j in line[1:]])
+            w2v_vector = np.array([float(j) for j in line[1:]])
+            # Normalize vector before storing
+            w2v_lookup[line[0]] = w2v_vector / np.linalg.norm(w2v_vector)
 
     train_model(train_dataset,
                 test_dataset,
                 w2v_lookup,
-                learning_rate=args.learning_rate,
                 batch_size=args.batch_size,
                 num_epochs=args.epochs)
 
