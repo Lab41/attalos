@@ -16,7 +16,8 @@ RUN apt-get update && apt-get install -y \
   libhdf5-serial-dev \
   hdf5-tools \
   libprotobuf-dev \ 
-  protobuf-compiler
+  protobuf-compiler \
+  default-jre
 
 # Install Jupyter Notebook for iTorch
 RUN pip install notebook ipywidgets
