@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y \
   python-zmq \
   python-pip \
   libhdf5-serial-dev \
-  hdf5-tools
+  hdf5-tools \
+  libprotobuf-dev \ 
+  protobuf-compiler
 
 # Install Jupyter Notebook for iTorch
 RUN pip install notebook ipywidgets
@@ -51,6 +53,7 @@ RUN luarocks install image
 RUN luarocks install lua-cjson
 RUN luarocks install https://raw.githubusercontent.com/qassemoquab/stnbhwd/master/stnbhwd-scm-1.rockspec
 RUN luarocks install https://raw.githubusercontent.com/jcjohnson/torch-rnn/master/torch-rnn-scm-1.rockspec
+RUN luarocks install loadcaffe
 
 # Add NVIDIA's cuDNN 
 RUN mkdir /nvidia_cudnn
