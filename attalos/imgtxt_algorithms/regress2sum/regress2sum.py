@@ -9,6 +9,16 @@ from LocalEval import get_pr
 
 
 def tags_2_vec(tags, w2v_model=None):
+    """
+    Takes a list of text tags and returns the normalized sum of the word vectors
+
+    Args:
+        tags: A iterable of text tags
+        w2v_model: a dictionary like object where the keys are words and the values are word vectors
+
+    Returns:
+        Normalized sum of the word vectors
+    """
     if len(tags) == 0:
         return np.zeros(300)
     else:
@@ -16,11 +26,23 @@ def tags_2_vec(tags, w2v_model=None):
         return output / np.linalg.norm(output)
 
 
-def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model):
+def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5):
+    """
+    Takes a regressor and returns the precision/recall on the test data
+    Args:
+        regressor: a tensorflow.contrib.learn regression estimator
+        val_image_feats: Image features to test performance on
+        val_text_tags: Text Tags to test performance on
+        w2v_model: a dictionary like object where the keys are words and the values are word vectors
+        k: Top number of items to retrieve to test precision/recall on
+
+    Returns:
+        (precision, recall, f1): A tuple of precision, recall, and F1 score
+    """
     val_pred = regressor.predict(val_image_feats)
     topks = []
     for i in range(val_pred.shape[0]):
-        topk = get_top_k(val_pred[i, :]/np.linalg.norm(val_pred[i, :]), w2v_model, 5)
+        topk = get_top_k(val_pred[i, :]/np.linalg.norm(val_pred[i, :]), w2v_model, k)
         topks.append(topk)
 
     return get_pr(val_text_tags, topks)
@@ -31,10 +53,23 @@ def train_model(train_dataset,
                 w2v_model,
                 batch_size=128,
                 num_epochs=200,
-                save_path=None):
+                save_path=None,
+                verbose=True):
+    """
+    Train a regression model to map image features into the word vector space
+    Args:
+        train_dataset: Training attalos.dataset.dataset object
+        test_dataset: Test attalos.dataset.dataset object
+        w2v_model: A dictionary like object where the keys are words and the values are word vectors
+        batch_size: Batch size to use for training
+        num_epochs: Number of epochs to train for
+        save_path: Path to save model to allow restart
+
+    Returns:
+        regressor: The trained regression estimator
+    """
     num_items = train_dataset.num_images
 
-    # Get validation data
     # Get validation data
     val_image_feats, val_text_tags = test_dataset.get_next_batch(batch_size*10)
     for i in range(batch_size):
@@ -58,13 +93,15 @@ def train_model(train_dataset,
             word_feats = [tags_2_vec(tags, w2v_model) for tags in text_tags]
             regressor.fit(image_feats, word_feats)
 
-        precision, recall, f1 = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model)
-
-        # Evaluate accuracy
-        print('Epoch:', epoch, 'Precision:', precision, 'Recall:', recall, 'F1:', f1)
+        if verbose:
+            precision, recall, f1 = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model)
+            # Evaluate accuracy
+            print('Epoch:', epoch, 'Precision:', precision, 'Recall:', recall, 'F1:', f1)
 
     if save_path:
         regressor.save(save_path)
+
+    return regressor
 
 
 def main():
