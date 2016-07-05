@@ -64,16 +64,24 @@ def train_model(train_dataset,
         batch_size: Batch size to use for training
         num_epochs: Number of epochs to train for
         save_path: Path to save model to allow restart
-
+        verbose: Amounto fdebug information to output
     Returns:
         regressor: The trained regression estimator
     """
     num_items = train_dataset.num_images
 
     # Get validation data
-    val_image_feats, val_text_tags = test_dataset.get_next_batch(batch_size*10)
-    for i in range(batch_size):
-        val_image_feats[i, :] = val_image_feats[i, :]/np.linalg.norm(val_image_feats[i, :])
+    #  Extract features from first image
+    image_feats, tags = test_dataset.get_index(0)
+    # Get shape and initialize numpy matrix
+    image_feat_size = image_feats.shape[0]
+    val_image_feats = np.zeros((test_dataset.num_images, image_feat_size))
+    val_text_tags = []
+    # Extract features and place in numpy matrix
+    for i in test_dataset:
+        image_feats, tags = test_dataset[i]
+        val_image_feats[i, :] = image_feats/np.linalg.norm(image_feats)
+        val_text_tags.append(tags)
 
     # Allocate GPU memory as needed (vs. allocating all the memory)
     config = tf.ConfigProto()
