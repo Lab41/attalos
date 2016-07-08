@@ -4,8 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from attalos.dataset.dataset import Dataset
-from MinHeap import get_top_k
-from LocalEval import get_pr
+from attalos.evaluation.evaluation import Eval
 
 
 def tags_2_vec(tags, w2v_model=None):
@@ -26,7 +25,7 @@ def tags_2_vec(tags, w2v_model=None):
         return output / np.linalg.norm(output)
 
 
-def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5):
+def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5, verbose=False):
     """
     Takes a regressor and returns the precision/recall on the test data
     Args:
@@ -35,17 +34,49 @@ def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5
         val_text_tags: Text Tags to test performance on
         w2v_model: a dictionary like object where the keys are words and the values are word vectors
         k: Top number of items to retrieve to test precision/recall on
+        verbose: Verbose output or not
 
     Returns:
-        (precision, recall, f1): A tuple of precision, recall, and F1 score
+        evaluator: A attalos.evaluation.evaluation.Eval object
     """
     val_pred = regressor.predict(val_image_feats)
-    topks = []
-    for i in range(val_pred.shape[0]):
-        topk = get_top_k(val_pred[i, :]/np.linalg.norm(val_pred[i, :]), w2v_model, k)
-        topks.append(topk)
 
-    return get_pr(val_text_tags, topks)
+    w2ind = {}
+    reverse_w2v_model = {}
+    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])))
+    for i, word in enumerate(w2v_model):
+        w2ind[word] = i
+        wordmatrix[i, :] = w2v_model[word]
+        reverse_w2v_model[i] = word
+
+    ground_truth_one_hot = np.zeros((len(val_text_tags), len(w2v_model)))
+    num_skipped = 0
+    total = 0
+    skipped = set()
+    for i, tags in enumerate(val_text_tags):
+        for tag in tags:
+            try:
+                total += 1
+                ground_truth_one_hot[i, w2ind[tag]] = 1
+            except KeyError:
+                skipped.add(tag)
+                num_skipped +=1
+
+    if verbose:
+        print('Skipped {} of {} total'.format(num_skipped, total))
+
+    predictions_one_hot = np.zeros((len(val_text_tags), len(w2v_model)))
+    for i in range(val_pred.shape[0]):
+        normalized_val = val_pred[i, :]/np.linalg.norm(val_pred[i, :])
+        # np.dot(wordmatrix, normalized_val) gets the similarity between the two vectors
+        # argpartition gets the topk (where k=5)
+        indices = np.argpartition(np.dot(wordmatrix,normalized_val), -1*k)[-1*k:]
+        for index in indices:
+            predictions_one_hot[i, index] = 1
+
+    evaluator = Eval(ground_truth_one_hot, predictions_one_hot)
+
+    return evaluator
 
 
 def train_model(train_dataset,
@@ -102,9 +133,10 @@ def train_model(train_dataset,
             regressor.fit(image_feats, word_feats)
 
         if verbose:
-            precision, recall, f1 = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model)
+            evaluator = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, verbose=verbose)
             # Evaluate accuracy
-            print('Epoch:', epoch, 'Precision:', precision, 'Recall:', recall, 'F1:', f1)
+            print('Epoch: {}'.format(epoch))
+            evaluator.print_evaluation()
 
     if save_path:
         regressor.save(save_path)
