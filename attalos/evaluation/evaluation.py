@@ -2,31 +2,33 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import math
 import numpy as np
 import scipy as sp
 
 from sklearn import metrics
 
-class Eval(object):
+class Evaluation(object):
     """
     Assumes:
         predicted: matrix of label prediction confidence [trial, tag]
         eval_data: matrix of ground truth classifications [trial, tag]
     """
-    def __init__(self, truth, predictions):            
+    def __init__(self, truth, predictions, k=0.5):            
         self.predictions_raw = predictions
 
-        self.k = 0.5
-        self.predictions = self.confidence_threshold(0.5).astype(int)
+        self.k = k
+        self.predictions = self.confidence_threshold(k).astype(int)
 
         self.ground_truth = truth
         self.ntrials = predictions.shape[0]
         self.ntags = predictions.shape[1]
 
-        self.metrics = [self.precision, self.recall, self.f1, 
-                        self.coverage_error, self.ranking_precision]
+        # Defaults are precision, recall, and F1.
+        # Others may be added by appending their names to the list
+        self.metrics = [self.precision, self.recall, self.f1]
 
-    def top_k(self, k):
+    def set_k(self, k):
         if k <= 0:
             return
         elif k < 1 and k > 0:
@@ -50,6 +52,8 @@ class Eval(object):
         temp[np.abs(self.predictions_raw) > threshold] = 1
         self.k = threshold
         return temp
+
+    # Beginning of metrics
 
     def precision(self):
         """
@@ -143,6 +147,8 @@ class Eval(object):
         s_message = 'Average Spearman\'s coefficient is: '
         return s_message + str(self.spearman)
 
+    # End of metrics
+
     def print_evaluation(self):
         print('---Evaluation---')
         if self.k >= 1:
@@ -175,7 +181,7 @@ def main():
     evaluation_dataset = np.loadtxt(evaluation_dataset_filename)
     prediction_matrix = np.loadtxt(prediction_matrix_filename)
 
-    evaluated = Eval(evaluation_dataset, prediction_matrix)
+    evaluated = Evaluation(evaluation_dataset, prediction_matrix)
 
     evaluated.print_evaluation()
 
