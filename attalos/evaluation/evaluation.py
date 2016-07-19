@@ -25,7 +25,7 @@ class Evaluation(object):
         self.ntags = predictions.shape[1]
 
         # Defaults are precision, recall, and F1.
-        # Others may be added by appending their names to the list
+        # Others may be added by appending their names to this list
         self.metrics = [self.precision, self.recall, self.f1]
 
     def set_k(self, k):
@@ -82,7 +82,7 @@ class Evaluation(object):
     def f1(self):
         self.f1 = metrics.f1_score(
             self.ground_truth, self.predictions, 
-            average='micro')
+            average='macro')
         return 'F1: ' + str(self.f1)
 
     def roc_auc(self):
@@ -149,7 +149,7 @@ class Evaluation(object):
 
     # End of metrics
 
-    def print_evaluation(self):
+    def evaluate(self):
         print('---Evaluation---')
         if self.k >= 1:
             print('---(where k = ' 
@@ -183,7 +183,7 @@ def main():
 
     evaluated = Evaluation(evaluation_dataset, prediction_matrix)
 
-    evaluated.print_evaluation()
+    evaluated.evaluate()
 
 if __name__ == '__main__':
     main()
