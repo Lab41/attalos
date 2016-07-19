@@ -8,6 +8,8 @@ import scipy as sp
 
 from sklearn import metrics
 
+from oct2py import octave
+
 class Eval(object):
     """
     Assumes:
@@ -18,43 +20,60 @@ class Eval(object):
     """
     def __init__(self, truth, predictions):            
         self.predictions_raw = predictions
-        temp = predictions
-        temp[np.abs(self.predictions_raw) < 0.5] = 0
-        temp[np.abs(self.predictions_raw) >= 0.5] = 1
-        self.predictions = temp.astype(int)
+
+        self.k = 0.5
+        self.predictions = self.confidence_threshold(0.5).astype(int)
 
         self.ground_truth = truth
         self.ntrials = predictions.shape[0]
         self.ntags = predictions.shape[1]
-        
-        self.metrics = [self.w_precision, self.w_recall, self.coverage_error, 
-                        self.ranking_precision, self.ranking_loss, self.roc_auc, self.kendall_tau]
+
+        self.metrics = [self.m_precision, self.m_recall, self.coverage_error, 
+                        self.ranking_precision, self.ranking_loss, self.roc_auc]
 
     def top_k(self, k):
-        predictions = self.predictions_raw
+        if k <= 0:
+            return
+        elif k < 1 and k > 0:
+            self.predictions = self.confidence_threshold(k).astype(int)
+            return
+        elif k > self.predictions_raw.shape[1]:
+            return
 
-        for row in predictions:
-            top_indices = np.argsort(row)[-k:]
-            row.fill(0)
-            row[top_indices] = 1
+        predictions = np.zeros(self.predictions_raw.shape)
+
+        for raw_row, prediction_row in zip(self.predictions_raw, predictions):
+            top_indices = np.argsort(raw_row)[-int(k):]
+            prediction_row[top_indices] = 1
 
         self.predictions = predictions.astype(int)
-        print(self.predictions)
+        self.k = k
+
+    def confidence_threshold(self, threshold):
+        temp = np.copy(self.predictions_raw)
+        temp[np.abs(self.predictions_raw) <= threshold] = 0
+        temp[np.abs(self.predictions_raw) > threshold] = 1
+        self.k = threshold
+        return temp
 
     def print_evaluation(self):
         print('---Evaluation---')
+        if self.k >= 1:
+            print('---(where k = ' + str(self.k) + ')---')
+        else:
+            print('---where confidence > ' + str(self.k) + ' is classified as positive---')
         for metric in self.metrics:
             print(metric())
 
     def m_precision(self):
         """
-        Unweighted precision score, requires appearance of each label in the ground truth set
+        Unweighted precision score
         """
         try:
             self.m_precision = metrics.precision_score(self.ground_truth, self.predictions, average='macro')
         except UndefinedMetricWarning:
             pass
-        return 'Precision (macro): ' + str(self.m_precision)
+        return 'Precision: ' + str(self.m_precision)
 
     def w_precision(self):
         """
@@ -74,7 +93,7 @@ class Eval(object):
             self.m_recall = metrics.recall_score(self.ground_truth, self.predictions, average='macro')
         except UndefinedMetricWarning:
             pass
-        return 'Recall (macro): ' + str(self.m_recall)
+        return 'Recall: ' + str(self.m_recall)
 
     def w_recall(self):
         """
@@ -86,13 +105,17 @@ class Eval(object):
             pass
         return 'Recall (weighted): ' + str(self.w_recall)
 
+    def f1(self):
+        self.f1 = metrics.f1_score(self.ground_truth, self.predictions, average='micro')
+        return 'F1: ' + str(self.f1)
+
     def roc_auc(self):
         """
         Assumes:
             each column has at least two values (i.e. each example tag appears more than once)
         """
         try:
-            self.roc_auc = metrics.roc_auc_score(self.ground_truth, self.predictions_raw)
+            self.roc_auc = metrics.roc_auc_score(self.ground_truth, self.predictions_raw, average='macro')
             return 'Area Under Curve [0, 1, where 0.5 = chance]: ' + str(self.roc_auc)
         except ValueError:
             return 'Area Under Curve could not be computed ...'

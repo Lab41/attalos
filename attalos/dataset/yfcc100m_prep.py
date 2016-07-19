@@ -6,7 +6,7 @@ import os
 
 import six
 
-from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
+from dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 # from the tab-delimited YFCC100M data fields
 META_FIELDS = [
@@ -83,24 +83,28 @@ class YFCC100MDatasetPrep(DatasetPrep):
         self.item_info = {}
         # uncomment this if the filename is overall YFCC100M file, rather than a batch of it
         # for subset in os.listdir(self.data_filename):
-        with open(os.path.join(self.data_filename, subset), "r") as file:
+        #with open(os.path.join(self.data_filename, subset), "r") as file:
+        with open(self.dataset_directory, "r") as file:
+            count = 0
             for i, line in enumerate(file):
                 tokens = [item.strip() for item in line.split("\t")]
-                download_image(tokens)
+                self.download_image(tokens)
 
         self.__remove_images_without_tags()
 
     def download_image(self, tokens):
         mapping = dict(zip(META_FIELDS, tokens))
-        if mapping['image_or_video'] == 0:
+        if mapping['image_or_video'] == '0':
             key = mapping['photo_id']
                         
             image_url = mapping['download_url']
-            fname = key
-            # May need to add an extension to this
-            download_if_not_present(fname, image_url)
 
-            self.item_info[key] = RecordMetadata(id=key, image_name=fname, tags=mapping['user_tags'], captions=mapping['description'])
+            fname = key
+
+            # May need to add an extension to this
+            self.download_if_not_present(fname, image_url)
+
+            self.item_info[key] = {'id': key, 'fname': fname, 'tags': mapping['user_tags'].split(','), 'captions': mapping['description']}
 
     def get_key(self, key):
         """
@@ -111,7 +115,8 @@ class YFCC100MDatasetPrep(DatasetPrep):
             (image file name, caption, tags): Returns image file name, caption string, list of tag strings
         """
         item = self.item_info[key]
-        return RecordMetadata(id=key, image_name=item['image_name'], tags=item['tags'], captions=item['captions'])
+
+        return RecordMetadata(id=key, image_name=item['fname'], tags=item['tags'], captions=item['captions'])
 
     def extract_image_by_key(self, key):
         """
@@ -153,3 +158,4 @@ class YFCC100MDatasetPrep(DatasetPrep):
             keys: The set of keys in this dataset
         """
         return self.item_info.keys()
+
