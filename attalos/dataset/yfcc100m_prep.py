@@ -6,7 +6,7 @@ import os
 
 import six
 
-from dataset_prep import DatasetPrep, RecordMetadata, SplitType               
+from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType               
 
 # from the tab-delimited YFCC100M data fields
 META_FIELDS = [
@@ -145,7 +145,7 @@ class YFCC100MDatasetPrep(DatasetPrep):
         """
         Extract the image from the downloaded data 
         by key and write to file location
-        
+
         Args:
             key: record key t
         """
