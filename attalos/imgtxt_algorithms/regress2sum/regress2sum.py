@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from attalos.dataset.dataset import Dataset
-from attalos.evaluation.evaluation import Eval
+from attalos.evaluation.evaluation import Evaluation
 
 
 def tags_2_vec(tags, w2v_model=None):
@@ -37,7 +37,7 @@ def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5
         verbose: Verbose output or not
 
     Returns:
-        evaluator: A attalos.evaluation.evaluation.Eval object
+        evaluator: A attalos.evaluation.evaluation.Evaluation object
     """
     val_pred = regressor.predict(val_image_feats)
 
@@ -74,7 +74,7 @@ def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5
         for index in indices:
             predictions_one_hot[i, index] = 1
 
-    evaluator = Eval(ground_truth_one_hot, predictions_one_hot)
+    evaluator = Evaluation(ground_truth_one_hot, predictions_one_hot)
 
     return evaluator
 
@@ -136,7 +136,7 @@ def train_model(train_dataset,
             evaluator = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, verbose=verbose)
             # Evaluate accuracy
             print('Epoch: {}'.format(epoch))
-            evaluator.print_evaluation()
+            evaluator.evaluate()
 
     if save_path:
         regressor.save(save_path)
