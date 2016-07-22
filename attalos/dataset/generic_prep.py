@@ -47,8 +47,8 @@ class GenericDatasetPrep(DatasetPrep):
         """
         if self.split == SplitType.TRAIN:
             split_name = 'train'
-        elif self.split == SplitType.VAL:
-            split_name = 'val'
+        elif self.split == SplitType.TEST:
+            split_name = 'test'
         else:
             raise NotImplementedError('Split type not yet implemented')
 
