@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import sys
 from collections import namedtuple
 from abc import ABCMeta
 from abc import abstractmethod
@@ -100,7 +101,7 @@ class DatasetPrep(object):
         pass
 
     @staticmethod
-    def download_if_not_present(candidate_filename, url):
+    def download_if_not_present(candidate_filename, url, verbose=True):
         if os.path.exists(candidate_filename):
             return True
         else:
@@ -108,7 +109,16 @@ class DatasetPrep(object):
             # Download the file from `url` and save it locally under `file_name`:
             filename = os.path.basename(candidate_filename)
             print('Downloading {} starting'.format(filename))
-            urllib.request.urlretrieve(url, candidate_filename)
+            def dlProgress(count, blockSize, totalSize):
+                percent = int(count*blockSize*100/totalSize)
+                sys.stdout.write("\r" + filename + "...%d%%" % percent)
+                sys.stdout.flush()
+
+            if verbose:
+                urllib.request.urlretrieve(url, candidate_filename, reporthook=dlProgress)
+            else:
+                urllib.request.urlretrieve(url, candidate_filename)
+
             print('Downloading {} finished'.format(filename))
 
     def get_candidate_filename(self, url):
