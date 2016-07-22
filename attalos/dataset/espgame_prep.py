@@ -3,16 +3,16 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import json
+import hashlib
 import tarfile
-from collections import defaultdict
 from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 
 ESPGAME_URL = "http://hunch.net/~learning/ESP-ImageSet.tar.gz"
 
+
 class ESPGameDatasetPrep(DatasetPrep):
-    def __init__(self, dataset_directory, split='train'):
+    def __init__(self, dataset_directory, split='train', split_division=.9):
         """
         Initialize MS COCO specific dataset prep iterator
         Args:
@@ -21,18 +21,20 @@ class ESPGameDatasetPrep(DatasetPrep):
         Returns:
 
         """
-        super(ESPGameDatasetPrep, self).__init__('MS COCO', dataset_directory)
+        super(ESPGameDatasetPrep, self).__init__('ESP Game', dataset_directory)
         if split.lower() == 'train':
             self.split = SplitType.TRAIN
         elif split.lower() == 'test':
-            raise NotImplementedError('Split type not yet implemented')
+            self.split = SplitType.TEST
         elif split.lower() == 'val':
             raise NotImplementedError('Split type not yet implemented')
         else:
             raise NotImplementedError('Split type not yet implemented')
         self.data_filename = self.get_candidate_filename(ESPGAME_URL)
+        self.image_filename = None
         self.download_dataset()
         self.image_file_handle = None
+        self.split_division = split_division
         self.item_info = self.load_metadata()
 
     def download_dataset(self):
@@ -46,14 +48,14 @@ class ESPGameDatasetPrep(DatasetPrep):
 
     def load_metadata(self):
         """
-        Load the MS COCO dataset to allow for efficient iteration
+        Load the ESP Game Metadata to allow for efficient iteration
         Returns:
 
         """
         if self.split == SplitType.TRAIN:
             split_name = 'train'
-        elif self.split == SplitType.VAL:
-            split_name = 'val'
+        elif self.split == SplitType.TEST:
+            split_name = 'test'
         else:
             raise NotImplementedError('Split type not yet implemented')
 
@@ -65,17 +67,25 @@ class ESPGameDatasetPrep(DatasetPrep):
             if 'LABELS' in tfile.name and tfile.isfile():
                 # Filename of the format ESP-ImageSet/LABELS/####.jpg.desc
                 image_id = os.path.basename(tfile.name)[:-len('.desc')]
-                image_filename = 'ESP-ImageSet/images/{}'.format(image_id)
-                tags = []
-                for tag in self.image_file_handle.extractfile(tfile):
-                    tag = tag.strip()
-                    if len(tag) > 0:
-                        tags.append(tag)
 
-                item_info[image_id] = {'fname': image_filename,
-                                         'id': image_id,
-                                         'tags': tags,
-                                         'captions': []}
+                # Get hash and use to partition
+                m = hashlib.md5()
+                m.update(image_id)
+                reproducible_rand = int(m.hexdigest()[-2:], base=16)/255
+
+                if (reproducible_rand < self.split_division and split_name == 'train') or \
+                    (reproducible_rand > self.split_division and split_name == 'test'):
+                    image_filename = 'ESP-ImageSet/images/{}'.format(image_id)
+                    tags = []
+                    for tag in self.image_file_handle.extractfile(tfile):
+                        tag = tag.strip()
+                        if len(tag) > 0:
+                            tags.append(tag)
+
+                    item_info[image_id] = {'fname': image_filename,
+                                             'id': image_id,
+                                             'tags': tags,
+                                             'captions': []}
         return item_info
 
     def get_key(self, key):
