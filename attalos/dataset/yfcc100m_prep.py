@@ -6,7 +6,7 @@ import os
 
 import six
 
-from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType               
+from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 # from the tab-delimited YFCC100M data fields
 META_FIELDS = [
@@ -68,8 +68,7 @@ class YFCC100MDatasetPrep(DatasetPrep):
         self.download_dataset()
 
     def __remove_images_without_tags(self):
-        """ Delete info about files that don't have tags. 
-        This also removes files from the wrong split"""
+        """ Delete info about files that don't have tags. This also removes files from the wrong split"""
         keys_to_delete = []
         for f_id in self.item_info:
             if len(self.item_info[f_id]['tags']) == 0:
@@ -79,38 +78,29 @@ class YFCC100MDatasetPrep(DatasetPrep):
 
     def download_dataset(self):
         """
-        Dataset must already be downloaded, but this integrates metadata 
-        loading and image downloading
+        Dataset must already be downloaded, but this integrates metadata loading and image downloading
         """
         self.item_info = {}
-        # uncomment if the filename is overall YFCC file, rather than a batch
+        # uncomment this if the filename is overall YFCC100M file, rather than a batch of it
         # for subset in os.listdir(self.data_filename):
-        #with open(os.path.join(self.data_filename, subset), "r") as file:
-        with open(self.dataset_directory, "r") as file:
-            count = 0
+        with open(os.path.join(self.data_filename, subset), "r") as file:
             for i, line in enumerate(file):
                 tokens = [item.strip() for item in line.split("\t")]
-                self.download_image(tokens)
+                download_image(tokens)
 
         self.__remove_images_without_tags()
 
     def download_image(self, tokens):
         mapping = dict(zip(META_FIELDS, tokens))
-        if mapping['image_or_video'] == '0':
+        if mapping['image_or_video'] == 0:
             key = mapping['photo_id']
                         
             image_url = mapping['download_url']
-
             fname = key
-
             # May need to add an extension to this
-            self.download_if_not_present(fname, image_url)
+            download_if_not_present(fname, image_url)
 
-            self.item_info[key] = {'id': key, 
-                                   'fname': fname,
-                                   'tags': mapping['user_tags'].split(','), 
-                                   'captions': mapping['description']
-                                   }
+            self.item_info[key] = RecordMetadata(id=key, image_name=fname, tags=mapping['user_tags'], captions=mapping['description'])
 
     def get_key(self, key):
         """
@@ -118,15 +108,10 @@ class YFCC100MDatasetPrep(DatasetPrep):
         Args:
             key: key
         Returns:
-            (image file name, caption, tags)
+            (image file name, caption, tags): Returns image file name, caption string, list of tag strings
         """
         item = self.item_info[key]
-
-        return RecordMetadata(
-            id=key, 
-            image_name=item['fname'], 
-            tags=item['tags'], 
-            captions=item['captions'])
+        return RecordMetadata(id=key, image_name=item['image_name'], tags=item['tags'], captions=item['captions'])
 
     def extract_image_by_key(self, key):
         """
@@ -143,9 +128,7 @@ class YFCC100MDatasetPrep(DatasetPrep):
 
     def extract_image_to_location(self, key, location):
         """
-        Extract the image from the downloaded data 
-        by key and write to file location
-
+        Extract the image from the downloaded data by key and write to file location
         Args:
             key: record key t
         """
@@ -155,9 +138,7 @@ class YFCC100MDatasetPrep(DatasetPrep):
 
     def __iter__(self):
         """
-        Iterates over dataset return metadata about dataset, 
-        one record at a time
-
+        Iterates over dataset return metadata about dataset, one record at a time
         Returns:
             (image file name, caption string, list of tag strings associated with next item)
         """
@@ -172,4 +153,3 @@ class YFCC100MDatasetPrep(DatasetPrep):
             keys: The set of keys in this dataset
         """
         return self.item_info.keys()
-
