@@ -21,7 +21,7 @@ class GenericDatasetPrep(DatasetPrep):
         if split.lower() == 'train':
             self.split = SplitType.TRAIN
         elif split.lower() == 'test':
-            self.split = SplitType.Test
+            self.split = SplitType.TEST
         elif split.lower() == 'val':
             raise NotImplementedError('Split type not yet implemented')
         else:
