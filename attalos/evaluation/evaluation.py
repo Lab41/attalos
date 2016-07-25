@@ -17,18 +17,24 @@ class Evaluation(object):
     def __init__(self, truth, predictions, k=0.5):            
         self.predictions_raw = predictions
 
-        self.k = k
-        self.predictions = self.confidence_threshold(k).astype(int)
+        self.set_k(k)
 
         self.ground_truth = truth
         self.ntrials = predictions.shape[0]
         self.ntags = predictions.shape[1]
 
         # Defaults are precision, recall, and F1.
-        # Others may be added by appending their names to this list
+        # May be extended by appending other metric functions to list
         self.metrics = [self.precision, self.recall, self.f1]
 
     def set_k(self, k):
+        """
+        Performs two possible functions:
+            If k is greater than 1, computes predictions for top-k
+                from the raw predictions.
+            If k is between 0 and 1, sets k as a threshold for
+                positive predictions.
+        """
         if k <= 0:
             return
         elif k < 1 and k > 0:
@@ -47,6 +53,10 @@ class Evaluation(object):
         self.k = k
 
     def confidence_threshold(self, threshold):
+        """
+        Sets the given float as a threshold for positive prediction,
+        producing binary predictions from the raw confidence scores.
+        """
         temp = np.copy(self.predictions_raw)
         temp[np.abs(self.predictions_raw) <= threshold] = 0
         temp[np.abs(self.predictions_raw) > threshold] = 1
@@ -57,7 +67,7 @@ class Evaluation(object):
 
     def precision(self):
         """
-        Unweighted precision score
+        Unweighted mean precision score across predicted tags
         """
         try:
             self.m_precision = metrics.precision_score(
@@ -69,7 +79,7 @@ class Evaluation(object):
 
     def recall(self):
         """
-        Unweighted recall score
+        Unweighted mean recall score across predicted tags
         """
         try:
             self.m_recall = metrics.recall_score(
@@ -80,6 +90,9 @@ class Evaluation(object):
         return 'Recall: ' + str(self.m_recall)
 
     def f1(self):
+        """
+        Computes recall score for top-k or above-threshold predictions
+        """
         self.f1 = metrics.f1_score(
             self.ground_truth, self.predictions, 
             average='macro')
@@ -87,6 +100,8 @@ class Evaluation(object):
 
     def roc_auc(self):
         """
+        Computes the area under the ROC curve, given the raw
+            confidence scores.
         Assumes:
             each column has at least two values 
             (i.e. each example tag appears more than once)
@@ -129,12 +144,22 @@ class Evaluation(object):
         return rp_message + str(self.ranking_precision)
 
     def ranking_loss(self):
+        """
+        Computes the ranking loss, which averages the number of
+        incorrectly-ordered labels (i.e. true labels have a lower 
+        score than false labels, weighted by the the inverse number 
+        of false and true labels) based on raw precision scores.
+        """
         self.ranking_loss = metrics.label_ranking_loss(
             self.ground_truth, self.predictions_raw)
         rl_message = 'Ranking Loss: '
         return rl_message + str(self.ranking_loss)
 
     def spearman(self):
+        """
+        Computes the average Spearman's correlation coefficient over
+        the raw predictions and ground truths.
+        """
         scores = np.empty((self.ntags, 1))
         for tag_n in range(0, self.ntags):
             [spearman_value, p_value] = sp.stats.spearmanr(
@@ -150,6 +175,9 @@ class Evaluation(object):
     # End of metrics
 
     def evaluate(self):
+        """
+        Prints the results of evaluation metrics.
+        """
         print('---Evaluation---')
         if self.k >= 1:
             print('---(where k = ' 
