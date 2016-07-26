@@ -17,13 +17,17 @@ attalos-torch: depends
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
                    --device /dev/nvidia0:/dev/nvidia0  -it l41-torch /bin/bash
 
+attalos-theano: depends
+	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
+                   --device /dev/nvidia2:/dev/nvidia0  -it l41-keras /bin/bash
 attalos-densecap-bash: depends
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
                    --device /dev/nvidia0:/dev/nvidia0  -it l41-densecap /bin/bash
 
 notebook: depends
-	docker build -t l41-attalos-notebook -f Dockerfile.notebook .
-	docker run -d -p 8888:8888 -v /data:/data -v ~/:/work --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
+	# docker build -t l41-attalos-notebook -f Dockerfile.notebook .
+	docker build -t l41-attalos-notebook-conda -f Dockerfile.notebook .
+	docker run -d -p 9999:8888 -v /data:/data -v ~/:/work --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
         	   --device /dev/nvidia0:/dev/nvidia0 -it l41-attalos-notebook /bootstrap.sh
 
 depends:

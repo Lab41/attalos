@@ -38,3 +38,9 @@ ENV PYTHONPATH=/root/caffe/python:$PYTHONPATH
 
 # Set ~/caffe as working directory
 WORKDIR /root/caffe
+
+# POSSIBLE SOLUTIONS:
+# conda install nomkl numpy scipy scikit-learn numexpr
+# conda remove mkl mkl-service
+## Or, do:
+# conda install --yes mkl mkl-service 

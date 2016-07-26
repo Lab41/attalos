@@ -27,7 +27,7 @@ class Eval(object):
         self.ntrials = predictions.shape[0]
         self.ntags = predictions.shape[1]
         
-        self.metrics = [self.w_precision, self.w_recall, self.coverage_error, 
+        self.metrics = [self.m_precision, self.m_recall, self.coverage_error, 
                         self.ranking_precision, self.ranking_loss, self.roc_auc, self.kendall_tau]
 
     def top_k(self, k):
