@@ -65,9 +65,13 @@ class GenericDatasetPrep(DatasetPrep):
             for line in input_file:
                 ls = line.strip().split('\t')
                 if ls[I_SPLIT].lower() == split_name:
+                    try:
+                        tags =  ls[I_TAGS].split(',')
+                    except IndexError:
+                        tags = []
                     item_info[ls[I_FNAME]] = {'fname': ls[I_FNAME],
                                              'id': ls[I_FNAME],
-                                             'tags': ls[I_TAGS].split(','),
+                                             'tags': tags,
                                              'captions': []}
         return item_info
 
