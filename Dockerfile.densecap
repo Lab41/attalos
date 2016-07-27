@@ -1,4 +1,3 @@
-
 # Be sure to download cuda from NVIDIA first before building this
 # container. NVIDIA requires users to register as a developer. Afterwards,
 # you can download the .tgz file. 
@@ -56,12 +55,14 @@ RUN luarocks install https://raw.githubusercontent.com/qassemoquab/stnbhwd/maste
 RUN luarocks install https://raw.githubusercontent.com/jcjohnson/torch-rnn/master/torch-rnn-scm-1.rockspec
 RUN luarocks install loadcaffe
 
-# Add NVIDIA's cuDNN 
-RUN mkdir /nvidia_cudnn
-ADD extras/cudnn-7.5-linux-x64-v5.1-rc.tgz /nvidia_cudnn
-RUN sudo cp -P /nvidia_cudnn/cuda/include/cudnn.h /usr/include
-RUN sudo cp -P /nvidia_cudnn/cuda/lib64/libcudnn* /usr/lib/x86_64-linux-gnu/
-RUN sudo chmod a+r /usr/lib/x86_64-linux-gnu/libcudnn*
+# Install cuDNN
+RUN echo "deb http://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1404/x86_64 /" > /etc/apt/sources.list.d/nvidia-ml.list
+ENV CUDNN_VERSION 5
+LABEL com.nvidia.cudnn.version="5"
+RUN apt-get update && apt-get install -y --no-install-recommends --force-yes \
+        libcudnn5 \
+        libcudnn5-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # GPU acceleratation
 RUN luarocks install cutorch
