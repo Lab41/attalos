@@ -1,4 +1,4 @@
-all: tensorflow theano caffe torch densecap
+all: tensorflow theano caffe torch
 
 # Base requirements for all containers
 depends:
@@ -25,9 +25,6 @@ caffe: nvidia-base
 torch: nvidia-base
 	docker build -t l41-torch -f Dockerfile.torch .
 
-densecap: nvidia-base
-	docker build -t l41-densecap -f Dockerfile.densecap .
-
 # Run various environments
 attalos-bash: tensorflow
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
@@ -36,10 +33,6 @@ attalos-bash: tensorflow
 attalos-torch: torch
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
                    --device /dev/nvidia0:/dev/nvidia0  -it l41-torch /bin/bash
-
-attalos-densecap-bash: densecap
-	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
-                   --device /dev/nvidia0:/dev/nvidia0  -it l41-densecap /bin/bash
 
 notebook: tensorflow
 	docker build -t l41-attalos-notebook -f Dockerfile.notebook .
