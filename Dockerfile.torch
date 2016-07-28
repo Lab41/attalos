@@ -21,8 +21,7 @@ RUN pip install notebook ipywidgets
 # Run Torch7 installation scripts (dependencies only)
 RUN git clone https://github.com/torch/distro.git /root/torch --recursive && \
     cd /root/torch && \
-    bash install-deps
-RUN cd /root/torch && \
+    bash install-deps && \
     ./install.sh
 
 # Export environment variables manually
@@ -64,6 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends --force-yes \
         libcudnn5 \
         libcudnn5-dev && \
     rm -rf /var/lib/apt/lists/*
+ENV CUDA_BIN_PATH=/usr/local/cuda-7.5
 
 # GPU acceleratation
 RUN luarocks install cutorch
