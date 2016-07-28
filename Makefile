@@ -34,6 +34,10 @@ attalos-torch: torch
 	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
                    --device /dev/nvidia0:/dev/nvidia0  -it l41-torch /bin/bash
 
+attalos-caffe: caffe
+	docker run --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
+                   --device /dev/nvidia0:/dev/nvidia0  -it l41-caffe /bin/bash
+
 notebook: tensorflow
 	docker build -t l41-attalos-notebook -f Dockerfile.notebook .
 	docker run -d -p 8888:8888 -v /data:/data -v ~/:/work --device /dev/nvidiactl:/dev/nvidiactl --device /dev/nvidia-uvm:/dev/nvidia-uvm \
