@@ -44,17 +44,16 @@ class Dataset(object):
 
     def __load_text_features(self):
         if self.text_feature_filename.endswith('.gz'):
-            input_file = gzip.open(self.text_feature_filename)
+            input_file = gzip.open(self.text_feature_filename, 'rt')
         else:
-            input_file = open(self.text_feature_filename)
+            input_file = open(self.text_feature_filename, 'rt')
         self.text_feats = json.load(input_file)[self.text_feat_type]
 
     def get_index(self, item_index):
         # Transform image index to image_id
         item_id = self.image_ids[item_index]
         # Make sure our id's are strings
-        if not isinstance(item_id, str):
-            item_id = str(item_id)
+        item_id = str(item_id, 'utf-8')
 
         img_feat = self.image_feats[item_index, :]
         # If we are supposed to transform tags using TextTransformer then transform tags

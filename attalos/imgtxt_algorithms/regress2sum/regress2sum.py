@@ -43,7 +43,8 @@ def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5
 
     w2ind = {}
     reverse_w2v_model = {}
-    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])))
+    _, word_feats = next(iter(w2v_model.items()))
+    wordmatrix = np.zeros((len(w2v_model), len(word_feats)))
     for i, word in enumerate(w2v_model):
         w2ind[word] = i
         wordmatrix[i, :] = w2v_model[word]
@@ -191,9 +192,9 @@ def main():
     w2v_lookup = {}
     if os.path.exists(args.word_vector_file):
         if args.word_vector_file.endswith('.gz'):
-            input_file = gzip.open(args.word_vector_file)
+            input_file = gzip.open(args.word_vector_file, 'rt')
         else:
-            input_file = open(args.word_vector_file)
+            input_file = open(args.word_vector_file, 'rt')
     for i, line in enumerate(input_file):
         first_word = line[:line.find(' ')]
         if first_word in dataset_tags:
