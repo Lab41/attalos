@@ -2,18 +2,17 @@ FROM  l41-nvidia-base
 
 # Install git, apt-add-repository and dependencies for iTorch
 RUN apt-get update && apt-get install -y \
+    default-jre \
     git \
-    software-properties-common \
-    ipython3 \
-    libssl-dev \
-    libzmq3-dev \
-    python-zmq \
-    python-pip \
-    libhdf5-serial-dev \
     hdf5-tools \
+    ipython3 \
+    libhdf5-serial-dev \
     libprotobuf-dev \
+    libssl-dev \
     protobuf-compiler \
-    default-jre
+    python-pip \
+    python-zmq \
+    software-properties-common
 
 # Install Jupyter Notebook for iTorch
 RUN pip install notebook ipywidgets
@@ -33,7 +32,6 @@ ENV DYLD_LIBRARY_PATH=/root/torch/install/lib:$DYLD_LIBRARY_PATH
 ENV LUA_CPATH='/root/torch/install/lib/?.so;'$LUA_CPATH
 
 # Install cudnn manually as Torch opts for latest version
-#RUN luarocks install https://raw.githubusercontent.com/soumith/cudnn.torch/R4/cudnn-scm-1.rockspec
 RUN cd /root && \
     git clone https://github.com/deepmind/torch-hdf5.git && \
     cd torch-hdf5 && \
@@ -48,9 +46,12 @@ RUN wget https://github.com/hughperkins/FindCUDA/archive/v3.5-1.tar.gz -q -O Fin
 
 # Install additional DenseCap dependencies
 RUN luarocks install torch
+ENV CUDA_BIN_PATH=/usr/local/cuda-7.5
+RUN luarocks install cutorch
 RUN luarocks install nn
 RUN luarocks install image
 RUN luarocks install lua-cjson
+RUN luarocks install https://raw.githubusercontent.com/soumith/cudnn.torch/R4/cudnn-scm-1.rockspec
 RUN luarocks install https://raw.githubusercontent.com/qassemoquab/stnbhwd/master/stnbhwd-scm-1.rockspec
 RUN luarocks install https://raw.githubusercontent.com/jcjohnson/torch-rnn/master/torch-rnn-scm-1.rockspec
 RUN luarocks install loadcaffe
@@ -63,7 +64,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends --force-yes \
         libcudnn5 \
         libcudnn5-dev && \
     rm -rf /var/lib/apt/lists/*
-ENV CUDA_BIN_PATH=/usr/local/cuda-7.5
 
 # GPU acceleratation
 RUN luarocks install cutorch
