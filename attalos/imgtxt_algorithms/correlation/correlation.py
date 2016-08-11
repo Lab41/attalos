@@ -95,3 +95,42 @@ def nonlinearity(arr, coef=-1, offset=1, power=2, alpha=0.005):
         a numpy ndarray
     """
     return np.exp(coef*np.power((arr-offset),power)/alpha)
+
+def original_value_filter(arr, original_multihot):
+    """
+    This function returns a copy of arr where all values are suppressed except for the ones selected by original_multihot.
+    In other words, non-selected values are set to 0.
+
+    Args:
+        arr:
+        original_multihot:
+
+    Returns:
+    """
+    filtered_arr = np.copy(arr)
+    for row_idx, row in enumerate(filtered_arr):
+        for idx, val in enumerate(row):
+            if idx not in np.where(original_multihot[idx]>0)[0]:
+                row[idx] = 0
+
+def top_n_value_filter(arr, n, reverse=False):
+    """
+    This function returns a copy of arr where all values except for the top n are suppressed.
+    In other words, all values except for the top n are set to 0.
+
+    In the case where reverse = True, perform the same operations except use the bottom n instead of top n.
+
+    Args:
+        arr:
+        n:
+        reverse:
+
+    Returns:
+    """
+    filtered_arr = np.zeros(arr.shape)
+    for row_idx, row in enumerate(arr):
+        ordered_idxs = row.argsort()[::-1]
+        selected_idxs = ordered_idxs[-n:] if reverse else ordered_idxs[:n]
+        for idx in selected_idxs:
+            filtered_arr[row_idx][idx] = row[idx]
+    return filtered_arr
