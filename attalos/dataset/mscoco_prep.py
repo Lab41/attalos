@@ -46,6 +46,7 @@ class MSCOCODatasetPrep(DatasetPrep):
         """
         self.download_if_not_present(self.instances_filename, TRAIN_VAL_INSTANCES_2014_URL)
         self.download_if_not_present(self.caption_filename, TRAIN_VAL_IMAGE_CAPTIONS_2014_URL)
+        self.download_if_not_present(self.image_filename, TRAIN_IMAGE_2014_URL)
         self.image_filename = self.get_candidate_filename(TRAIN_IMAGE_2014_URL)
 
     def load_metadata(self):
