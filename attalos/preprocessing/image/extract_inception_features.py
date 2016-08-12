@@ -170,7 +170,7 @@ def main(_):
   parser.add_argument('--dataset_type',
                       dest='dataset_type',
                       default='mscoco',
-                      choices=['mscoco', 'visualgenome', 'iaprtc12', 'generic'])
+                      choices=['mscoco', 'visualgenome', 'iaprtc', 'generic'])
   parser.add_argument('--split',
                       dest='split',
                       default='train',
@@ -195,7 +195,7 @@ def main(_):
     print('Processing Visual Genome Data')
     from attalos.dataset.vg_prep import VGDatasetPrep
     dataset_prep = VGDatasetPrep(args.dataset_dir, split=args.split)
-  elif args.dataset_type == 'iaprtc12':
+  elif args.dataset_type == 'iaprtc':
     print('Processing IAPRTC-12 data')
     from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
     dataset_prep = IAPRTC12DatasetPrep(args.dataset_dir, split=args.split)
