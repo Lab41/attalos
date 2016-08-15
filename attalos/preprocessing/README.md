@@ -23,6 +23,15 @@ docker run -it\
     lab41/l41-caffe-keras-tf /bin/bash
 
 ```
+# Simplified Steps
+```
+cd /attalos/preprocessing/
+
+./process_data.sh /path/to/data/directory mscoco
+# Repeat for other desired datasets (i.e. espgame, iaprtc, visualgenome)
+
+```
+
 # Run Extract Scripts in Docker container
 ```
 
