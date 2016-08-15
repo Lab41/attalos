@@ -10,7 +10,9 @@ import zipfile
 from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
 
 
-VISUAL_GENOME_IMAGES = 'https://cs.stanford.edu/people/rak248/VG_100K/images.zip'
+#VISUAL_GENOME_IMAGES = 'https://cs.stanford.edu/people/rak248/VG_100K/images.zip'
+VISUAL_GENOME_IMAGES_1 = 'https://cs.stanford.edu/people/rak248/VG_100K_2/images.zip'
+VISUAL_GENOME_IMAGES_2 = 'https://cs.stanford.edu/people/rak248/VG_100K_2/images2.zip'
 VISUAL_GENOME_METADATA = 'https://visualgenome.org/static/data/dataset/image_data.json.zip'
 VISUAL_GENOME_REGIONS = 'https://visualgenome.org/static/data/dataset/region_descriptions.json.zip'
 VISUAL_GENOME_OBJECTS = 'https://visualgenome.org/static/data/dataset/objects.json.zip'
@@ -43,12 +45,14 @@ class VGDatasetPrep(DatasetPrep):
         self.data_dir = dataset_directory
 
         self.metadata_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
-        self.images_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES)
+        self.images1_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES_1)
+        self.images2_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES_2)
         self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
         self.regions_filename = self.get_candidate_filename(VISUAL_GENOME_REGIONS)
         self.download_dataset()
         self.load_metadata()
-        self.images_file_handle = None
+        self.images1_file_handle = None
+        self.images2_file_handle = None
 
     def download_dataset(self):
         """
@@ -57,7 +61,8 @@ class VGDatasetPrep(DatasetPrep):
         """
 
         self.download_if_not_present(self.metadata_filename, VISUAL_GENOME_METADATA)
-        self.download_if_not_present(self.images_filename, VISUAL_GENOME_IMAGES)
+        self.download_if_not_present(self.images1_filename, VISUAL_GENOME_IMAGES_1)
+        self.download_if_not_present(self.images2_filename, VISUAL_GENOME_IMAGES_2)
         self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
         self.download_if_not_present(self.regions_filename, VISUAL_GENOME_REGIONS)
 
@@ -69,7 +74,7 @@ class VGDatasetPrep(DatasetPrep):
         """
         if self.split == SplitType.TRAIN:
             split_name = 'train'
-        elif self.split == SplitType.VAL:
+        elif self.split == SplitType.TEST:
             split_name = 'val'
         else:
             raise NotImplementedError('Split type not yet implemented')
@@ -78,7 +83,7 @@ class VGDatasetPrep(DatasetPrep):
         metadata_raw_name = os.path.basename(self.metadata_filename)[:-1*len('.zip')]
         json_file = zipfile.ZipFile(self.metadata_filename).open(metadata_raw_name)
         item_info = json.load(json_file)
-        self.item_keys = [item_id['id'] for item_id in item_info]
+        self.item_keys = [item_id['image_id'] for item_id in item_info]
         self.item_info = dict(zip(self.item_keys, item_info))
 
         # Load object data
@@ -94,7 +99,7 @@ class VGDatasetPrep(DatasetPrep):
             except:
                 print(row)
                 raise
-            self.tags_data[row['id']] = list(objects)
+            self.tags_data[row['image_id']] = list(objects)
 
         # Load caption data
         captions_raw_name = os.path.basename(self.regions_filename)[:-1*len('.zip')]
@@ -146,10 +151,24 @@ class VGDatasetPrep(DatasetPrep):
         """
         key_info = self.get_key(key)
 
-        if self.images_file_handle is None:
-            self.images_file_handle = zipfile.ZipFile(self.images_filename)
+        if self.images1_file_handle is None or self.images2_file_handle is None:
+            self.images_1_file_handle = zipfile.ZipFile(self.images1_filename)
+            self.images_2_file_handle = zipfile.ZipFile(self.images2_filename)
+            self.images_1_fnames ={}
+            for fname in self.images_1_file_handle.namelist():
+                bname = os.path.basename(fname)
+                self.images_1_fnames[bname] = fname
+            self.image_2_fnames ={}
+            for fname in self.images_2_file_handle.namelist():
+                bname = os.path.basename(fname)
+                self.images_2_fnames[bname] = fname
 
-        train_captions = self.images_file_handle.open('%s'%format(key_info.image_name))
+        if key_info.image_name in self.images_1_fnames:
+            fname = self.images_1_fnames[key_info.image_name]
+            train_captions = self.images_1_file_handle.open('%s'%format(fname))
+        else:
+            fname = self.images_2_fnames[key_info.image_name]
+            train_captions = self.images_2_file_handle.open('%s'%format(fname))
 
         return train_captions.read()
 
@@ -171,7 +190,7 @@ class VGDatasetPrep(DatasetPrep):
         Gets the image (assuming it's been extracted).
         '''
         imdata = self.get_key(key)
-        imurl = imdata['url'].split('/')[-1]
+        imurl = '/'.join(imdata['url'].split('/')[-2:])
         return self.data_dir+imurl
 
     def __iter__(self):
@@ -180,13 +199,27 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
             RecordMetadata: Information about the next key
         """
-        if self.images_file_handle is None:
-            self.images_file_handle = zipfile.ZipFile(self.images_filename)
+        if self.images1_file_handle is None or self.images2_file_handle is None:
+            self.images_1_file_handle = zipfile.ZipFile(self.images1_filename)
+            self.images_2_file_handle = zipfile.ZipFile(self.images2_filename)
+            self.images_1_fnames ={}
+            for fname in self.images_1_file_handle.namelist():
+                bname = os.path.basename(fname)
+                self.images_1_fnames[bname] = fname
+            self.images_2_fnames ={}
+            for fname in self.images_2_file_handle.namelist():
+                bname = os.path.basename(fname)
+                self.images_2_fnames[bname] = fname
 
         for key in sorted(self.list_keys()):
             if 'VG_100K' in self.item_info[key]['url']:
                 potential_key = self.get_key(key)
-                file_size = self.images_file_handle.getinfo(potential_key.image_name).file_size
+                if potential_key.image_name in self.images_1_fnames:
+                    fname = self.images_1_fnames[potential_key.image_name]
+                    file_size = self.images_1_file_handle.getinfo(fname).file_size
+                else:
+                    fname = self.images_2_fnames[potential_key.image_name]
+                    file_size = self.images_2_file_handle.getinfo(fname).file_size
                 if file_size != 0:
                     yield potential_key
 
