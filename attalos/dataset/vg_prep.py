@@ -45,14 +45,14 @@ class VGDatasetPrep(DatasetPrep):
         self.data_dir = dataset_directory
 
         self.metadata_filename = self.get_candidate_filename(VISUAL_GENOME_METADATA)
-        self.images1_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES_1)
-        self.images2_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES_2)
+        self.images_1_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES_1)
+        self.images_2_filename = self.get_candidate_filename(VISUAL_GENOME_IMAGES_2)
         self.objects_filename = self.get_candidate_filename(VISUAL_GENOME_OBJECTS)
         self.regions_filename = self.get_candidate_filename(VISUAL_GENOME_REGIONS)
         self.download_dataset()
         self.load_metadata()
-        self.images1_file_handle = None
-        self.images2_file_handle = None
+        self.images_1_file_handle = None
+        self.images_2_file_handle = None
 
     def download_dataset(self):
         """
@@ -61,8 +61,8 @@ class VGDatasetPrep(DatasetPrep):
         """
 
         self.download_if_not_present(self.metadata_filename, VISUAL_GENOME_METADATA)
-        self.download_if_not_present(self.images1_filename, VISUAL_GENOME_IMAGES_1)
-        self.download_if_not_present(self.images2_filename, VISUAL_GENOME_IMAGES_2)
+        self.download_if_not_present(self.images_1_filename, VISUAL_GENOME_IMAGES_1)
+        self.download_if_not_present(self.images_2_filename, VISUAL_GENOME_IMAGES_2)
         self.download_if_not_present(self.objects_filename, VISUAL_GENOME_OBJECTS)
         self.download_if_not_present(self.regions_filename, VISUAL_GENOME_REGIONS)
 
@@ -151,17 +151,8 @@ class VGDatasetPrep(DatasetPrep):
         """
         key_info = self.get_key(key)
 
-        if self.images1_file_handle is None or self.images2_file_handle is None:
-            self.images_1_file_handle = zipfile.ZipFile(self.images1_filename)
-            self.images_2_file_handle = zipfile.ZipFile(self.images2_filename)
-            self.images_1_fnames ={}
-            for fname in self.images_1_file_handle.namelist():
-                bname = os.path.basename(fname)
-                self.images_1_fnames[bname] = fname
-            self.image_2_fnames ={}
-            for fname in self.images_2_file_handle.namelist():
-                bname = os.path.basename(fname)
-                self.images_2_fnames[bname] = fname
+        if self.images_1_file_handle is None or self.images_2_file_handle is None:
+            self.open_data_zipfiles()
 
         if key_info.image_name in self.images_1_fnames:
             fname = self.images_1_fnames[key_info.image_name]
@@ -192,6 +183,18 @@ class VGDatasetPrep(DatasetPrep):
         imdata = self.get_key(key)
         imurl = '/'.join(imdata['url'].split('/')[-2:])
         return self.data_dir+imurl
+    
+    def open_data_zipfiles(self):
+        self.images_1_file_handle = zipfile.ZipFile(open(self.images_1_filename, 'rb'))
+        self.images_2_file_handle = zipfile.ZipFile(open(self.images_2_filename, 'rb'))
+        self.images_1_fnames ={}
+        for fname in self.images_1_file_handle.namelist():
+            bname = os.path.basename(fname)
+            self.images_1_fnames[bname] = fname
+        self.images_2_fnames ={}
+        for fname in self.images_2_file_handle.namelist():
+            bname = os.path.basename(fname)
+            self.images_2_fnames[bname] = fname
 
     def __iter__(self):
         """
@@ -199,19 +202,10 @@ class VGDatasetPrep(DatasetPrep):
         Returns:
             RecordMetadata: Information about the next key
         """
-        if self.images1_file_handle is None or self.images2_file_handle is None:
-            self.images_1_file_handle = zipfile.ZipFile(self.images1_filename)
-            self.images_2_file_handle = zipfile.ZipFile(self.images2_filename)
-            self.images_1_fnames ={}
-            for fname in self.images_1_file_handle.namelist():
-                bname = os.path.basename(fname)
-                self.images_1_fnames[bname] = fname
-            self.images_2_fnames ={}
-            for fname in self.images_2_file_handle.namelist():
-                bname = os.path.basename(fname)
-                self.images_2_fnames[bname] = fname
+        if self.images_1_file_handle is None or self.images_2_file_handle is None:
+            self.open_data_zipfiles()
 
-        for key in sorted(self.list_keys()):
+        for key in self.list_keys():
             if 'VG_100K' in self.item_info[key]['url']:
                 potential_key = self.get_key(key)
                 if potential_key.image_name in self.images_1_fnames:
@@ -230,5 +224,15 @@ class VGDatasetPrep(DatasetPrep):
         List all keys in the dataset
         Returns:
         """
+        if self.images_1_file_handle is None or self.images_2_file_handle is None:
+            self.open_data_zipfiles()
 
-        return self.item_info.keys()
+        ordered_keys = [os.path.basename(fname) for fname in self.images_1_file_handle.namelist()]
+        ordered_keys.extend([os.path.basename(fname) for fname in self.images_2_file_handle.namelist()])
+        
+        # build reverse lookup
+        reverse_dict = {}
+        for key in self.item_info:
+            image_name = os.path.basename(self.item_info[key]['url'])
+            reverse_dict[image_name] = key
+        return [reverse_dict[key] for key in ordered_keys if key in reverse_dict]
