@@ -60,7 +60,9 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
   create_graph()
   image_keys = dataset.list_keys()
   features = np.zeros((len(image_keys), 2048), dtype=np.float16)
-  with tf.Session() as sess:
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  with tf.Session(config=config) as sess:
     for ind, img_record in enumerate(dataset):
         if ind % 1000 == 0:
             print ('Completed %d of %d'%(ind, len(image_keys)))
