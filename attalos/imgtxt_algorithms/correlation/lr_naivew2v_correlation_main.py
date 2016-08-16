@@ -2,9 +2,6 @@ import argparse
 import numpy as np
 from sklearn import linear_model
 
-import word2vec
-from glove import Glove
-
 import attalos.util.log.log as l
 import logging
 
@@ -104,9 +101,11 @@ def main():
 
     logger.info("Reading word vectors from file.")
     if args.word_vector_type == "glove":
+        from glove import Glove
         glove_model = Glove.load_stanford(args.word_vector_file)
         w2v_model = GloveWrapper(glove_model)
     else:  # args.word_vector_type == "word2vec" (default)
+        import word2vec
         w2v_model = W2VWrapper(word2vec.load(args.word_vector_file))
 
     logger.info("Creating one hot tag mapper.")
