@@ -190,7 +190,7 @@ def train_model(train_dataset,
             if model_output_path:
                 saver.save(sess, model_output_path)
 
-            return regressor
+            return
 
 
 def main():
