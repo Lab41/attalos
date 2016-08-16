@@ -1,0 +1,4 @@
+glove_python
+lxml
+oct2py
+word2vec
