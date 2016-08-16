@@ -18,18 +18,51 @@ def tags_2_vec(tags, w2v_model=None):
     Returns:
         Normalized sum of the word vectors
     """
-    if len(tags) == 0:
-        return np.zeros(300)
+    if len(tags) == 0 or len([tag for tag in tags if tag in w2v_model]) == 0:
+        return np.zeros(200)
     else:
-        output = np.sum([w2v_model[tag] for tag in tags], axis=0)
+        output = np.sum([w2v_model[tag] for tag in tags if tag in w2v_model], axis=0)
         return output / np.linalg.norm(output)
 
 
-def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5, verbose=False):
+def construct_model(input_size,
+                    output_size,
+                    learning_rate=1.001,
+                    hidden_units=[200,200],
+                    use_batch_norm=True):
+    model_info = dict()
+
+    # Placeholders for data
+    model_info['input'] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
+    model_info['y_truth'] = tf.placeholder(shape=(None, output_size), dtype=tf.float32)
+
+    layers = []
+    for i, hidden_size in enumerate(hidden_units):
+        if i == 0:
+            layer = tf.contrib.layers.relu(model_info['input'], hidden_size)
+        else:
+            layer = tf.contrib.layers.relu(layer, hidden_size)
+        layers.append(layer)
+        if use_batch_norm:
+            layer = tf.contrib.layers.batch_norm(layer)
+            layers.append(layer)
+
+    model_info['layers'] = layers
+    model_info['prediction'] = layer
+
+    loss = tf.reduce_sum(tf.square(model_info['prediction']-model_info['y_truth']))
+    model_info['loss'] = loss
+    model_info['optimizer'] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+
+    return model_info
+
+
+def evaluate_regressor(sess, model_info, val_image_feats, val_text_tags, w2v_model, k=5, verbose=False):
     """
     Takes a regressor and returns the precision/recall on the test data
     Args:
-        regressor: a tensorflow.contrib.learn regression estimator
+        sess: A tensorflow session
+        model_info: A dictionary containing tensorflow layers (specifically input and prediction)
         val_image_feats: Image features to test performance on
         val_text_tags: Text Tags to test performance on
         w2v_model: a dictionary like object where the keys are words and the values are word vectors
@@ -39,7 +72,7 @@ def evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, k=5
     Returns:
         evaluator: A attalos.evaluation.evaluation.Evaluation object
     """
-    val_pred = regressor.predict(val_image_feats)
+    val_pred = sess.run(model_info['prediction'], feed_dict={model_info['input']:val_image_feats})
 
     w2ind = {}
     reverse_w2v_model = {}
@@ -84,7 +117,10 @@ def train_model(train_dataset,
                 w2v_model,
                 batch_size=128,
                 num_epochs=200,
-                save_path=None,
+                learning_rate=1.001,
+                network_size=[200,200],
+                model_input_path = None,
+                model_output_path = None,
                 verbose=True):
     """
     Train a regression model to map image features into the word vector space
@@ -94,10 +130,12 @@ def train_model(train_dataset,
         w2v_model: A dictionary like object where the keys are words and the values are word vectors
         batch_size: Batch size to use for training
         num_epochs: Number of epochs to train for
-        save_path: Path to save model to allow restart
+        learning_rate: The learning rate for the network
+        network_size: A list defining the size of each layer of the neural network
+        model_input_path: Path to a file containing initial weights
+        model_output_path: Path to save final weights
         verbose: Amounto fdebug information to output
     Returns:
-        regressor: The trained regression estimator
     """
     num_items = train_dataset.num_images
 
@@ -106,6 +144,7 @@ def train_model(train_dataset,
     image_feats, tags = test_dataset.get_index(0)
     # Get shape and initialize numpy matrix
     image_feat_size = image_feats.shape[0]
+    text_feat_size = w2v_model[tags[0]].shape[0]
     val_image_feats = np.zeros((test_dataset.num_images, image_feat_size))
     val_text_tags = []
     # Extract features and place in numpy matrix
@@ -114,34 +153,47 @@ def train_model(train_dataset,
         val_image_feats[i, :] = image_feats/np.linalg.norm(image_feats)
         val_text_tags.append(tags)
 
-    # Allocate GPU memory as needed (vs. allocating all the memory)
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
+    with tf.Graph().as_default():
 
-    # Build regressor
-    regressor = tf.contrib.learn.TensorFlowDNNRegressor(hidden_units=[200,200],
-                                                        steps=10,
-                                                        continue_training=True,
-                                                        verbose=0)
 
-    for epoch in range(num_epochs):
-        for batch in range(int(num_items/batch_size)):
-            image_feats, text_tags = train_dataset.get_next_batch(batch_size)
-            for i in range(batch_size):
-                image_feats[i, :] = image_feats[i, :]/ np.linalg.norm(image_feats[i, :])
-            word_feats = [tags_2_vec(tags, w2v_model) for tags in text_tags]
-            regressor.fit(image_feats, word_feats)
+        # Build regressor
+        model_info = construct_model(image_feat_size,
+                                        text_feat_size,
+                                        learning_rate=learning_rate,
+                                        hidden_units=network_size,
+                                        use_batch_norm=True)
+        init = tf.initialize_all_variables()
+        saver = tf.train.Saver()
+        # Allocate GPU memory as needed (vs. allocating all the memory)
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        with tf.Session(config=config) as sess:
+            sess.run(init)
+            if model_input_path:
+                saver.restore(sess, model_input_path)
 
-        if verbose:
-            evaluator = evaluate_regressor(regressor, val_image_feats, val_text_tags, w2v_model, verbose=verbose)
-            # Evaluate accuracy
-            print('Epoch: {}'.format(epoch))
-            evaluator.evaluate()
+            for epoch in range(num_epochs):
+                for batch in range(int(num_items/batch_size)):
+                    image_feats, text_tags = train_dataset.get_next_batch(batch_size)
+                    for i in range(batch_size):
+                        image_feats[i, :] = image_feats[i, :]/ np.linalg.norm(image_feats[i, :])
+                    word_feats = np.array([tags_2_vec(tags, w2v_model) for tags in text_tags])
 
-    if save_path:
-        regressor.save(save_path)
+                    feed_dict = {}
+                    feed_dict[model_info['input']] = image_feats
+                    feed_dict[model_info['y_truth']] = word_feats
+                    sess.run(model_info['optimizer'], feed_dict=feed_dict)
 
-    return regressor
+                if verbose:
+                    evaluator = evaluate_regressor(sess, model_info, val_image_feats, val_text_tags, w2v_model, verbose=verbose)
+                    # Evaluate accuracy
+                    print('Epoch: {}'.format(epoch))
+                    evaluator.evaluate()
+
+            if model_output_path:
+                saver.save(sess, model_output_path)
+
+            return
 
 
 def main():
@@ -166,7 +218,7 @@ def main():
     # Optional Args
     parser.add_argument("--learning_rate",
                         type=float,
-                        default=.05,
+                        default=1.001,
                         help="Learning Rate")
     parser.add_argument("--epochs",
                         type=int,
@@ -176,6 +228,18 @@ def main():
                         type=int,
                         default=128,
                         help="Batch size to use for training")
+    parser.add_argument("--network",
+                        type=str,
+                        default="200,200",
+                        help="Define a neural network as comma separated layer sizes")
+    parser.add_argument("--model_input_path",
+                        type=str,
+                        default=None,
+                        help="Model input path (to continue training)")
+    parser.add_argument("--model_output_path",
+                        type=str,
+                        default=None,
+                        help="Model output path (to save training)")
 
     args = parser.parse_args()
     train_dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train)
@@ -206,7 +270,11 @@ def main():
                 test_dataset,
                 w2v_lookup,
                 batch_size=args.batch_size,
-                num_epochs=args.epochs)
+                learning_rate=args.learning_rate,
+                network_size=map(int, args.network.split(',')),
+                num_epochs=args.epochs,
+                model_input_path=args.model_input_path,
+                model_output_path=args.model_output_path)
 
 if __name__ == '__main__':
     main()
