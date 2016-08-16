@@ -1,123 +1,179 @@
-import sys
-import os.path
-import argparse
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+import os
+import shutil
+import tempfile
+import subprocess
+import re
 
 import numpy as np
 from scipy.misc import imread, imresize
-import scipy.io
+import tensorflow as tf
+import h5py
 
-import cPickle as pickle
 
-import caffe
+def create_graph():
+  """Creates a graph from saved GraphDef file and returns a saver."""
+  # Creates graph from saved graph_def.pb.
+  with open('vgg16-20160129.tfmodel', mode='rb') as f:
+    graph_def = tf.GraphDef()
+    graph_def.ParseFromString(f.read())
+    _ = tf.import_graph_def(graph_def, name='')
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--caffe',
-                    help='path to caffe installation')
-parser.add_argument('--model_def',
-                    help='path to model definition prototxt')
-parser.add_argument('--model',
-                    help='path to model parameters')
-parser.add_argument('--files',
-                    help='path to a file contsining a list of images')
-parser.add_argument('--gpu',
-                    action='store_true',
-                    help='whether to use gpu training')
-parser.add_argument('--out',
-                    help='name of the pickle file where to store the features')
+def load_image(path):
+  # load image
+  img = imread(path)
+  img = img / 255.0
+  assert (0 <= img).all() and (img <= 1.0).all()
+  #print "Original Image Shape: ", img.shape
+  # we crop image from center
+  short_edge = min(img.shape[:2])
+  yy = int((img.shape[0] - short_edge) / 2)
+  xx = int((img.shape[1] - short_edge) / 2)
+  crop_img = img[yy : yy + short_edge, xx : xx + short_edge]
+  # resize to 224, 224
+  resized_img = imresize(crop_img, (224, 224))
+  return resized_img
 
-args = parser.parse_args()
+def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
+  """Runs inference on an image.
+  Args:
+    dataset (DatasetPrep): Dataset
+    tmp_dir (str): Directory to store images temporarily
+  Returns:
+    Nothing
+  """
+  # Creates graph from saved GraphDef.
+  create_graph()
+  image_keys = dataset.list_keys()
+  features = np.zeros((len(image_keys), 4096), dtype=np.float16)
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  with tf.Session(config=config) as sess:
+    for ind, img_record in enumerate(dataset):
+        if ind % 1000 == 0:
+            print ('Completed %d of %d'%(ind, len(image_keys)))
 
-if args.caffe:
-    caffepath = args.caffe + '/python'
-    sys.path.append(caffepath)
+        new_fname = os.path.join(tmp_dir, os.path.basename(img_record.image_name))
+        dataset.extract_image_to_location(img_record.id, new_fname)
 
-def predict(in_data, net):
-    """
-    Get the features for a batch of data using network
+        try:
+            image_data = load_image(new_fname)
+            image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
 
-    Inputs:
-    in_data: data batch
-    """
+        except: # Not a jpeg, use file to find extension, try to read with scipy
+            filetype = subprocess.Popen(["file", new_fname], stdout=subprocess.PIPE).stdout.read()
+            extension = re.search(r':[ ]+([A-Z]+) ', filetype).group(1).lower()
+            new_new_fname = new_fname + '.{}'.format(extension)
+            print('Renaming to {}'.format(new_new_fname))
+            shutil.move(new_fname, new_new_fname)
+            image = load_image(new_new_fname) #Image.open(new_fname)
+            image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
+        try:
+            image_data = image_data.reshape((1, 224, 224, 3))
+            pool_3_tensor = sess.graph.get_tensor_by_name('fc7/BiasAdd:0')
+            predictions = sess.run(pool_3_tensor,
+                                   {'images:0': image_data})
+        except:
+            print('Error on {}: Found dimensions {}'.format(img_record.image_name, image_data.shape))
+            raise
 
-    out = net.forward(**{net.inputs[0]: in_data})
-    # features = out[net.outputs[0]].squeeze(axis=(2,3))
-    features = out[net.outputs[0]]
+        features[ind, :] = np.squeeze(predictions)
+        if os.path.exists(new_fname):
+            os.remove(new_fname)
+
     return features
 
-
-def batch_predict(filenames, net):
-    """
-    Get the features for all images from filenames using a network
-
-    Inputs:
-    filenames: a list of names of image files
-
-    Returns:
-    an array of feature vectors for the images in that file
-    """
-
-    N, C, H, W = net.blobs[net.inputs[0]].data.shape
-    F = net.blobs[net.outputs[0]].data.shape[1]
-    Nf = len(filenames)
-    Hi, Wi, _ = imread(filenames[0]).shape
-    allftrs = np.zeros((Nf, F))
-    for i in range(0, Nf, N):
-        in_data = np.zeros((N, C, H, W), dtype=np.float32)
-
-        batch_range = range(i, min(i+N, Nf))
-        batch_filenames = [filenames[j] for j in batch_range]
-        Nb = len(batch_range)
-
-        batch_images = np.zeros((Nb, 3, H, W))
-        for j,fname in enumerate(batch_filenames):
-            im = imread(fname)
-            if len(im.shape) == 2:
-                im = np.tile(im[:,:,np.newaxis], (1,1,3))
-            # RGB -> BGR
-            im = im[:,:,(2,1,0)]
-            # mean subtraction
-            im = im - np.array([103.939, 116.779, 123.68])
-            # resize
-            im = imresize(im, (H, W), 'bicubic')
-            # get channel in correct dimension
-            im = np.transpose(im, (2, 0, 1))
-            batch_images[j,:,:,:] = im
-
-        # insert into correct place
-        in_data[0:len(batch_range), :, :, :] = batch_images
-
-        # predict features
-        ftrs = predict(in_data, net)
-
-        for j in range(len(batch_range)):
-            allftrs[i+j,:] = ftrs[j,:]
-
-        print 'Done %d/%d files' % (i+len(batch_range), len(filenames))
-
-    return allftrs
+def save_hdf5(local_working_dir, hdf5_fname, image_features, image_ids):
+    '''
+    Create hdf5 file from features and filename list
+    '''
+    bname = os.path.basename(hdf5_fname)
+    temp_fname = os.path.join(local_working_dir, bname)
 
 
-if args.gpu:
-    caffe.set_mode_gpu()
-else:
-    caffe.set_mode_cpu()
+    fOut = h5py.File(temp_fname, 'w')
+    fOut.create_dataset('ids', data=image_ids)
+    fOut.create_dataset('feats', data=image_features, dtype=np.float32)
+    fOut.close()
 
-net = caffe.Net(args.model_def, args.model, caffe.TEST)
-# caffe.set_phase_test()
+    shutil.move(temp_fname, hdf5_fname)
 
-filenames = []
 
-base_dir = os.path.dirname(args.files)
-with open(args.files) as fp:
-    for line in fp:
-        filename = os.path.join(base_dir, line.strip().split()[0])
-        filenames.append(filename)
+def process_dataset(dataset_prep, output_fname, working_dir=tempfile.gettempdir()):
+  """
 
-allftrs = batch_predict(filenames, net)
+  Args:
+      dataset_prep (attalos.dataset.DatasetPrep): Dataset to convert
+      output_fname: Output filename to extract to
+      working_dir: Working directory to use for intermediate files
 
-if args.out:
-    # store the features in a pickle file
-    with open(args.out, 'w') as fp:
-        pickle.dump(allftrs, fp)
+  Returns:
 
-scipy.io.savemat(os.path.join(base_dir, 'vgg_feats.mat'), mdict =  {'feats': np.transpose(allftrs)})
+  """
+  # Extract image features using inception network
+  # TODO: Maybe this should batch in some way for large jobs?
+  features = run_inference_on_dataset(dataset_prep)
+
+  # Save computed features to file
+  image_ids = [str(record.id) for record in dataset_prep]
+  save_hdf5(working_dir, output_fname, features, image_ids)
+
+
+def main():
+  import argparse
+
+  parser = argparse.ArgumentParser(description='Extract image features using VGG model.')
+  parser.add_argument('--dataset_dir',
+                      dest='dataset_dir',
+                      type=str,
+                      help='Directory with input images')
+  parser.add_argument('--dataset_type',
+                      dest='dataset_type',
+                      default='mscoco',
+                      choices=['mscoco', 'visualgenome', 'iaprtc', 'generic', 'espgame'])
+  parser.add_argument('--split',
+                      dest='split',
+                      default='train',
+                      choices=['train', 'test', 'val'])
+  parser.add_argument('--output_fname',
+                      dest='output_fname',
+                      default='image_features.hdf5',
+                      type=str,
+                      help='Output hd5f filename')
+  parser.add_argument('--working_dir',
+                      dest='working_dir',
+                      default=tempfile.gettempdir(),
+                      type=str,
+                      help='Working directory for hdf5 file creation')
+  args = parser.parse_args()
+
+  if args.dataset_type == 'mscoco':
+    print('Processing MSCOCO Data')
+    from attalos.dataset.mscoco_prep import MSCOCODatasetPrep
+    dataset_prep = MSCOCODatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'visualgenome':
+    print('Processing Visual Genome Data')
+    from attalos.dataset.vg_prep import VGDatasetPrep
+    dataset_prep = VGDatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'iaprtc':
+    print('Processing IAPRTC-12 data')
+    from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
+    dataset_prep = IAPRTC12DatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'generic':
+    from attalos.dataset.generic_prep import GenericDatasetPrep
+    dataset_prep = GenericDatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'espgame':
+    print('Processing espgame data')
+    from attalos.dataset.espgame_prep import ESPGameDatasetPrep
+    dataset_prep = ESPGameDatasetPrep(args.dataset_dir, split=args.split)
+  else:
+      raise NotImplementedError('Dataset type {} not supported'.format(args.dataset_type))
+  process_dataset(dataset_prep, args.output_fname, working_dir=args.working_dir)
+
+
+if __name__ == '__main__':
+  main()
+

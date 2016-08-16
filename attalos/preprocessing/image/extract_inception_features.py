@@ -60,7 +60,9 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
   create_graph()
   image_keys = dataset.list_keys()
   features = np.zeros((len(image_keys), 2048), dtype=np.float16)
-  with tf.Session() as sess:
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  with tf.Session(config=config) as sess:
     for ind, img_record in enumerate(dataset):
         if ind % 1000 == 0:
             print ('Completed %d of %d'%(ind, len(image_keys)))
@@ -170,7 +172,7 @@ def main(_):
   parser.add_argument('--dataset_type',
                       dest='dataset_type',
                       default='mscoco',
-                      choices=['mscoco', 'visualgenome', 'iaprtc12', 'generic'])
+                      choices=['mscoco', 'visualgenome', 'iaprtc', 'generic', 'espgame'])
   parser.add_argument('--split',
                       dest='split',
                       default='train',
@@ -195,13 +197,18 @@ def main(_):
     print('Processing Visual Genome Data')
     from attalos.dataset.vg_prep import VGDatasetPrep
     dataset_prep = VGDatasetPrep(args.dataset_dir, split=args.split)
-  elif args.dataset_type == 'iaprtc12':
+  elif args.dataset_type == 'iaprtc':
     print('Processing IAPRTC-12 data')
     from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
     dataset_prep = IAPRTC12DatasetPrep(args.dataset_dir, split=args.split)
   elif args.dataset_type == 'generic':
+    print('Processing espgame data')
     from attalos.dataset.generic_prep import GenericDatasetPrep
     dataset_prep = GenericDatasetPrep(args.dataset_dir, split=args.split)
+  elif args.dataset_type == 'espgame':
+    print('Processing espgame data')
+    from attalos.dataset.espgame_prep import ESPGameDatasetPrep
+    dataset_prep = ESPGameDatasetPrep(args.dataset_dir, split=args.split)
   else:
       raise NotImplementedError('Dataset type {} not supported'.format(args.dataset_type))
   process_dataset(dataset_prep, args.output_fname, working_dir=args.working_dir)
