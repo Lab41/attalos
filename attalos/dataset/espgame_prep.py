@@ -14,7 +14,7 @@ ESPGAME_URL = "http://hunch.net/~learning/ESP-ImageSet.tar.gz"
 class ESPGameDatasetPrep(DatasetPrep):
     def __init__(self, dataset_directory, split='train', split_division=.9):
         """
-        Initialize MS COCO specific dataset prep iterator
+        Initialize ESPGame specific dataset prep iterator
         Args:
             dataset_directory: Directory to store image files in
             split: Train/Val split is allowed
