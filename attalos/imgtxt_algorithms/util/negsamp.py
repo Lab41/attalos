@@ -20,6 +20,9 @@ class NegativeSampler:
         self.labelpdf = word_count / word_count.sum()
         self.vocabsize = len(self.labelpdf)
 
+    def getpdf(self):
+        return self.labelpdf
+
     def negsamp(self, vector, num2samp):
         # Defined as sampling vocabulary with known probability, discarding
         # any item that appears in test vector as a 1
