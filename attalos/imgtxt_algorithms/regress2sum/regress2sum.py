@@ -27,7 +27,7 @@ def tags_2_vec(tags, w2v_model=None):
 
 def construct_model(input_size,
                     output_size,
-                    learning_rate=0.001,
+                    learning_rate=1.001,
                     hidden_units=[200,200],
                     use_batch_norm=True):
     model_info = dict()
@@ -61,7 +61,8 @@ def evaluate_regressor(sess, model_info, val_image_feats, val_text_tags, w2v_mod
     """
     Takes a regressor and returns the precision/recall on the test data
     Args:
-        regressor: a tensorflow.contrib.learn regression estimator
+        sess: A tensorflow session
+        model_info: A dictionary containing tensorflow layers (specifically input and prediction)
         val_image_feats: Image features to test performance on
         val_text_tags: Text Tags to test performance on
         w2v_model: a dictionary like object where the keys are words and the values are word vectors
@@ -129,10 +130,12 @@ def train_model(train_dataset,
         w2v_model: A dictionary like object where the keys are words and the values are word vectors
         batch_size: Batch size to use for training
         num_epochs: Number of epochs to train for
-        save_path: Path to save model to allow restart
+        learning_rate: The learning rate for the network
+        network_size: A list defining the size of each layer of the neural network
+        model_input_path: Path to a file containing initial weights
+        model_output_path: Path to save final weights
         verbose: Amounto fdebug information to output
     Returns:
-        regressor: The trained regression estimator
     """
     num_items = train_dataset.num_images
 
