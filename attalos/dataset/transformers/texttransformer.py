@@ -16,7 +16,7 @@ class TextTransformer(object):
             self.data_mapping = self.load_data_mapping(dictionary_file)
 
     @abstractmethod
-    def create_data_mapping(self, data_prep):
+    def create_data_mapping(self, *args, **kwargs):
         pass
 
     def load_data_mapping(self, dictionary_file):

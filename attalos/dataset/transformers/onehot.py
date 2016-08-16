@@ -4,13 +4,13 @@ from __future__ import print_function
 
 import collections
 import numpy as np
-from attalos.dataset.texttransformer import TextTransformer
+from attalos.dataset.transformers.texttransformer import TextTransformer
 
 class OneHot(TextTransformer):
     """
     Transforms tags from a dataset iterator into into a one-hot encoding
     """
-    def __init__(self, datasets, dictionary_file=None):
+    def __init__(self, datasets, valid_vocab=None, dictionary_file=None):
         """
         Initialize OneHot encoding
         Args:
@@ -25,9 +25,11 @@ class OneHot(TextTransformer):
             self.vocab_size = len(super(OneHot, self).keys())
         else:
             self.data_mapping = {}
-            self.create_data_mapping(datasets)
+            self.create_data_mapping(datasets, valid_vocab)
 
-    def create_data_mapping(self, datasets):
+    def create_data_mapping(self, *args, **kwargs):
+        datasets = args[0]
+        valid_vocab = args[1]
         dataset_tags = set()
         if isinstance(datasets, collections.Iterable):
             iterable_datasets = datasets
@@ -37,7 +39,10 @@ class OneHot(TextTransformer):
         for dataset in iterable_datasets:
             for tags in dataset.text_feats.values():
                 dataset_tags.update(tags)
-
+        
+        if valid_vocab:
+            dataset_tags = filter(lambda x: x in valid_vocab, dataset_tags)
+            
         self.vocab_size = len(dataset_tags)
         for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
@@ -53,10 +58,13 @@ class OneHot(TextTransformer):
         """
         multihot_feats = np.zeros(self.vocab_size)
         for tag in tags:
-            multihot_feats += self.__getitem__(tag)
+            if tag in self.data_mapping:
+                multihot_feats += self.__getitem__(tag)
         return multihot_feats
 
     def __getitem__(self, item):
+        if item not in self.data_mapping:
+            return None
         index = self.data_mapping[item]
         arr = np.zeros(self.vocab_size)
         arr[index] = 1
