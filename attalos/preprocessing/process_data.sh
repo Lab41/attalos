@@ -61,3 +61,23 @@ python2 attalos/preprocessing/image/extract_inception_features.py \
        --output_fname "$basepath/features/image/"$dataset"_test_"$datetime"_inception.hdf5" \
        --dataset_type "$dataset" \
        --split "test"
+
+if [ -e "$PYTHONPATH/vgg16-20160129.tfmodel" ]
+then
+    echo "Extracting training vgg image features"
+    python2 attalos/preprocessing/image/extract_vgg_features.py \
+       --dataset_dir "$basepath/datasets/$dataset" \
+       --output_fname "$basepath/features/image/"$dataset"_train_"$datetime"_vgg.hdf5" \
+       --dataset_type "$dataset" \
+       --split "train"
+
+    echo "Extracting test vgg image features"
+    python2 attalos/preprocessing/image/extract_vgg_features.py \
+       --dataset_dir "$basepath/datasets/$dataset" \
+       --output_fname "$basepath/features/image/"$dataset"_test_"$datetime"_vgg.hdf5" \
+       --dataset_type "$dataset" \
+       --split "test"
+else
+    echo "VGG model file not found in $PYTHONPATH/vgg16-20160129.tfmodel please download or create per instructions"
+    echo "Instructions: https://github.com/ry/tensorflow-vgg16"
+fi
