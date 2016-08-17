@@ -60,7 +60,7 @@ def main():
     parser.add_argument('--dataset_type',
                       dest='dataset_type',
                       default='mscoco',
-                      choices=['mscoco', 'visualgenome', 'iaprtc', 'generic', 'espgame'])
+                      choices=['mscoco', 'visualgenome', 'iaprtc', 'generic', 'espgame', 'nuswide'])
     parser.add_argument('--split',
                       dest='split',
                       default='train',
@@ -92,6 +92,10 @@ def main():
         print('Processing espgame')
         from attalos.dataset.espgame_prep import ESPGameDatasetPrep
         dataset_prep = ESPGameDatasetPrep(args.dataset_dir, split=args.split)
+    elif args.dataset_type == 'nuswide':
+        print('Processing nuswide data')
+        from attalos.dataset.nuswide_prep import NUSWideDatasetPrep
+        dataset_prep = NUSWideDatasetPrep(args.dataset_dir, split=args.split)
     else:
         raise NotImplementedError('Dataset type {} not supported'.format(args.dataset_type))
 
