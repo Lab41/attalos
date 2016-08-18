@@ -75,7 +75,7 @@ class Evaluation(object):
                 average='macro')
         except UndefinedMetricWarning:
             pass
-        return 'Precision: ' + str(self.m_precision)
+        return self.m_precision
 
     def recall(self):
         """
@@ -87,7 +87,7 @@ class Evaluation(object):
                 average='macro')
         except UndefinedMetricWarning:
             pass
-        return 'Recall: ' + str(self.m_recall)
+        return self.m_recall
 
     def f1(self):
         """
@@ -96,7 +96,7 @@ class Evaluation(object):
         self.f1 = metrics.f1_score(
             self.ground_truth, self.predictions, 
             average='macro')
-        return 'F1: ' + str(self.f1)
+        return self.f1
 
     def roc_auc(self):
         """
@@ -110,7 +110,7 @@ class Evaluation(object):
             self.roc_auc = metrics.roc_auc_score(
                 self.ground_truth, self.predictions_raw, 
                 average='macro')
-            return 'AUC: ' + str(self.roc_auc)
+            return self.roc_auc
         except ValueError:
             return 'Area Under Curve could not be computed ...'
 
@@ -140,8 +140,7 @@ class Evaluation(object):
         """
         self.ranking_precision = metrics.label_ranking_average_precision_score(
             self.ground_truth, self.predictions_raw)
-        rp_message = 'Ranking Precision (0, 1]: '
-        return rp_message + str(self.ranking_precision)
+        return self.ranking_precision
 
     def ranking_loss(self):
         """
@@ -152,8 +151,7 @@ class Evaluation(object):
         """
         self.ranking_loss = metrics.label_ranking_loss(
             self.ground_truth, self.predictions_raw)
-        rl_message = 'Ranking Loss: '
-        return rl_message + str(self.ranking_loss)
+        return self.ranking_loss
 
     def spearman(self):
         """
@@ -169,12 +167,11 @@ class Evaluation(object):
             scores[tag_n] = spearman_value
 
         self.spearman = np.average(scores)
-        s_message = 'Average Spearman\'s coefficient is: '
-        return s_message + str(self.spearman)
+        return self.spearman
 
     # End of metrics
 
-    def evaluate(self):
+    def print_evaluation(self):
         """
         Prints the results of evaluation metrics.
         """
@@ -190,6 +187,8 @@ class Evaluation(object):
         for metric in self.metrics:
             print(metric())
 
+    def evaluate(self):
+        return [metric() for metric in self.metrics]
 
 def main():
     import argparse
@@ -211,7 +210,7 @@ def main():
 
     evaluated = Evaluation(evaluation_dataset, prediction_matrix)
 
-    evaluated.evaluate()
+    evaluated.print_evaluation()
 
 if __name__ == '__main__':
     main()
