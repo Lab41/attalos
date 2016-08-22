@@ -15,9 +15,9 @@ class NegSamplingModel(object):
         self.model_info['input'] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
         self.model_info['pos_ids'] = tf.placeholder(dtype=tf.int32)
         self.model_info['neg_ids'] = tf.placeholder(dtype=tf.int32)
-
-        self.model_info['y_truth'] = tf.reduce_sum(tf.nn.embedding_lookup(w2v,self.model_info['pos_ids']),1)
-        self.model_info['y_neg'] = tf.reduce_sum(tf.nn.embedding_lookup(w2v,self.model_info['neg_ids']),1)
+        
+        self.model_info['y_truth'] = tf.transpose(tf.nn.embedding_lookup(w2v,self.model_info['pos_ids']), perm=[1,0,2])
+        self.model_info['y_neg'] = tf.transpose(tf.nn.embedding_lookup(w2v,self.model_info['neg_ids']), perm=[1,0,2])
 
         layers = []
         for i, hidden_size in enumerate(hidden_units):
@@ -34,15 +34,14 @@ class NegSamplingModel(object):
         self.model_info['prediction'] = layer
 
         #loss = tf.reduce_sum(tf.square(self.model_info['prediction']-self.model_info['y_truth']))
-
-        def tf_dot(x, y):
-            return tf.reduce_sum(tf.mul(x, y), 1)
-
-        # Negative Sampling
-        sig_pos = tf.sigmoid(tf.scalar_mul(1.0, tf_dot(self.model_info['y_truth'], self.model_info['prediction'])))
-        sig_neg = tf.sigmoid(tf.scalar_mul(-1.0, tf_dot(self.model_info['y_neg'], self.model_info['prediction'])))
-        loss = - tf.reduce_sum(tf.log(tf.clip_by_value(sig_pos, 1e-10, 1.0))) \
-                    - tf.reduce_sum(tf.log(tf.clip_by_value(sig_neg, 1e-10, 1.0)))
+        
+        def meanlogsig(pred, truth):
+            reduction_indicies = 2
+            return tf.reduce_mean( tf.log( tf.sigmoid( tf.reduce_sum(pred*truth, reduction_indices=reduction_indicies))))
+        
+        pos_loss = meanlogsig(self.model_info['prediction'], self.model_info['y_truth'])
+        neg_loss = meanlogsig(-self.model_info['prediction'], self.model_info['y_neg'])
+        loss = -(pos_loss + neg_loss)
 
         self.model_info['loss'] = loss
         self.model_info['optimizer'] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
