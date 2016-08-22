@@ -87,7 +87,7 @@ def train_model(train_dataset,
     # Extract features and place in numpy matrix
     for i in test_dataset:
         image_feats, tags = test_dataset[i]
-        val_image_feats[i, :] = image_feats/np.linalg.norm(image_feats)
+        val_image_feats[i, :] = image_feats
         val_text_tags.append(tags)
 
     # Create word vector matrix to allow for embedding lookup
@@ -100,12 +100,10 @@ def train_model(train_dataset,
     # Precompute onehot vectors to speed up evalutation
     val_one_hot = dok_matrix((len(val_text_tags), len(w2v_model)), dtype=np.int32)
     num_skipped = 0
-    total = 0
     skipped = set()
     for i, tags in enumerate(val_text_tags):
         for tag in tags:
             try:
-                total += 1
                 val_one_hot[i, w2ind[tag]] = 1
             except KeyError:
                 skipped.add(tag)
@@ -124,16 +122,8 @@ def train_model(train_dataset,
                     word_counts[w2ind[tag]] += 1
         labelpdf = word_counts / word_counts.sum()
         vocabsize = wordmatrix.shape[0]
-        def negsampv(ignored_inds, num2samp):
-            """ Vectorized negative sampler, returning multiple negatives samples
-            as a multi-hot vectors after taking an input 0/1 truth matrix. As
-            opposed to 'negsamp()', this function is designed for batch processing.
-            Defined as sampling vocabulary with known probability (provided at
-            initialization), discarding any item that appears in test vector as a 1
-            Args:
-                vector: multi-hot input vector/matrix: N x d
-                num2samp: number of negative samples per batch
-            """
+        def negsamp(ignored_inds, num2samp):
+            # Negative sampler that takes in indicies
 
             # Create new probability vector excluding positive samples
             nlabelpdf = np.copy(labelpdf)
@@ -171,32 +161,35 @@ def train_model(train_dataset,
             # Optionally restore saved model
             if model_input_path:
                 model.load(sess, model_input_path)
-
+            
+            NUM_POSTIVE_EXAMPLES = 5
+            NUM_NEGATIVE_EXAMPLES = 10
+            pos_word_ids = np.ones((batch_size, NUM_POSTIVE_EXAMPLES), dtype=np.int32)
+            neg_word_ids = np.ones((batch_size, NUM_NEGATIVE_EXAMPLES), dtype=np.int32)
             evaluators = []
             for epoch in range(num_epochs):
                 batch_time_total = 0
                 run_time_total = 0
 
                 loss = None
-                pos_word_ids = None
-                neg_word_ids = None
                 for batch in range(int(num_items/batch_size)):
                     batch_time = time.time()
                     image_feats, text_tags = train_dataset.get_next_batch(batch_size)
 
                     # Generate positive examples
-                    pos_word_ids = -1*np.ones((len(text_tags), 4), dtype=np.int32)
+                    NUM_POSTIVE_EXAMPLES = 5
+                    pos_word_ids.fill(-1)
                     for i, tags in enumerate(text_tags):
                         j = 0
                         for tag in tags:
-                            if tag in w2ind and j < 4:
+                            if tag in w2ind and j < NUM_POSTIVE_EXAMPLES:
                                 pos_word_ids[i, j] = w2ind[tag]
                                 j += 1
 
                     if model_type == ModelTypes.negsampling:
-                        neg_word_ids = -1*np.zeros((len(text_tags), 1), dtype=np.int32)
+                        neg_word_ids.fill(-1)
                         for i in range(neg_word_ids.shape[0]):
-                            neg_word_ids[i] = negsampv(pos_word_ids, 1)
+                            neg_word_ids[i] = negsamp(pos_word_ids, NUM_NEGATIVE_EXAMPLES)
 
                     batch_time = time.time() - batch_time
                     batch_time_total += batch_time
