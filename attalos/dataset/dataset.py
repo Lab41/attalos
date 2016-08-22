@@ -22,7 +22,8 @@ class Dataset(object):
                  text_feature_filename,
                  text_feat_type="tags",
                  tag_transfomer=None,
-                 seed=1024):
+                 seed=1024,
+                 load_image_feats_in_mem=False):
         self.rng = np.random.RandomState(seed)
         self.img_feature_filename = img_feature_filename
         self.text_feature_filename = text_feature_filename
@@ -32,12 +33,12 @@ class Dataset(object):
                                       .format(text_feat_type, ','.join(self.TEXT_FEAT_TYPES_AVAILABLE)))
 
         self.tag_transformer = tag_transfomer
-        self.__load_image_features()
+        self.__load_image_features(load_image_feats_in_mem)
         self.__load_text_features()
 
-    def __load_image_features(self):
+    def __load_image_features(self, load_image_feats_in_mem):
         self.img_feature_file = h5py.File(self.img_feature_filename)
-        self.image_feats = self.img_feature_file['feats']
+        self.image_feats = np.array(self.img_feature_file['feats'])
         self.image_ids = self.img_feature_file['ids']
         self.img_feat_size = len(self.image_feats[0,:]) # get length of the first feature vector
         self._num_images = len(self.image_ids)
