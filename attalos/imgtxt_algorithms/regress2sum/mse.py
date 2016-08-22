@@ -2,6 +2,9 @@ import numpy as np
 import tensorflow as tf
 
 class MSEModel(object):
+    """
+    Create a tensorflow graph that does regression to a target using a mean square error loss function
+    """
     def __init__(self, input_size,
                     w2v,
                     learning_rate=1.001,
