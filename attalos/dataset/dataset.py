@@ -38,7 +38,10 @@ class Dataset(object):
 
     def __load_image_features(self, load_image_feats_in_mem):
         self.img_feature_file = h5py.File(self.img_feature_filename)
-        self.image_feats = np.array(self.img_feature_file['feats'])
+        if load_image_feats_in_mem:
+            self.image_feats = np.array(self.img_feature_file['feats'])
+        else:
+            self.image_feats = self.img_feature_file['feats']
         self.image_ids = self.img_feature_file['ids']
         self.img_feat_size = len(self.image_feats[0,:]) # get length of the first feature vector
         self._num_images = len(self.image_ids)
