@@ -21,6 +21,6 @@ RUN apt-get update && apt-get install -y \
 
 # Install Tensorflow
 # --ignore-installed is required when using Anaconda per: https://github.com/tensorflow/tensorflow/issues/622#issuecomment-170309570
-RUN pip install --upgrade --ignore-installed https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.8.0-cp27-none-linux_x86_64.whl 
+RUN pip install --upgrade --ignore-installed https://storage.googleapis.com/tensorflow/linux/gpu/tensorflow-0.10.0rc0-cp27-none-linux_x86_64.whl
 
 EXPOSE 8888
