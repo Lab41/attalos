@@ -1,63 +1,24 @@
 import argparse
+from enum import Enum
 import gzip
 import numpy as np
+from scipy.sparse import dok_matrix, csr_matrix
 import tensorflow as tf
+import time
 
 from attalos.dataset.dataset import Dataset
 from attalos.evaluation.evaluation import Evaluation
 
+# Local models
+from mse import MSEModel
+from negsampling import NegSamplingModel
 
-def tags_2_vec(tags, w2v_model=None):
-    """
-    Takes a list of text tags and returns the normalized sum of the word vectors
-
-    Args:
-        tags: A iterable of text tags
-        w2v_model: a dictionary like object where the keys are words and the values are word vectors
-
-    Returns:
-        Normalized sum of the word vectors
-    """
-    if len(tags) == 0 or len([tag for tag in tags if tag in w2v_model]) == 0:
-        return np.zeros(200)
-    else:
-        output = np.sum([w2v_model[tag] for tag in tags if tag in w2v_model], axis=0)
-        return output / np.linalg.norm(output)
+class ModelTypes(Enum):
+    mse = 1
+    negsampling = 2
 
 
-def construct_model(input_size,
-                    output_size,
-                    learning_rate=1.001,
-                    hidden_units=[200,200],
-                    use_batch_norm=True):
-    model_info = dict()
-
-    # Placeholders for data
-    model_info['input'] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
-    model_info['y_truth'] = tf.placeholder(shape=(None, output_size), dtype=tf.float32)
-
-    layers = []
-    for i, hidden_size in enumerate(hidden_units):
-        if i == 0:
-            layer = tf.contrib.layers.relu(model_info['input'], hidden_size)
-        else:
-            layer = tf.contrib.layers.relu(layer, hidden_size)
-        layers.append(layer)
-        if use_batch_norm:
-            layer = tf.contrib.layers.batch_norm(layer)
-            layers.append(layer)
-
-    model_info['layers'] = layers
-    model_info['prediction'] = layer
-
-    loss = tf.reduce_sum(tf.square(model_info['prediction']-model_info['y_truth']))
-    model_info['loss'] = loss
-    model_info['optimizer'] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
-
-    return model_info
-
-
-def evaluate_regressor(sess, model_info, val_image_feats, val_text_tags, w2v_model, k=5, verbose=False):
+def evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, k=5, verbose=False):
     """
     Takes a regressor and returns the precision/recall on the test data
     Args:
@@ -72,45 +33,20 @@ def evaluate_regressor(sess, model_info, val_image_feats, val_text_tags, w2v_mod
     Returns:
         evaluator: A attalos.evaluation.evaluation.Evaluation object
     """
-    val_pred = sess.run(model_info['prediction'], feed_dict={model_info['input']:val_image_feats})
+    val_pred = model.predict(sess, val_image_feats)
 
-    w2ind = {}
-    reverse_w2v_model = {}
-    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])))
-    for i, word in enumerate(w2v_model):
-        w2ind[word] = i
-        wordmatrix[i, :] = w2v_model[word]
-        reverse_w2v_model[i] = word
-
-    ground_truth_one_hot = np.zeros((len(val_text_tags), len(w2v_model)))
-    num_skipped = 0
-    total = 0
-    skipped = set()
-    for i, tags in enumerate(val_text_tags):
-        for tag in tags:
-            try:
-                total += 1
-                ground_truth_one_hot[i, w2ind[tag]] = 1
-            except KeyError:
-                skipped.add(tag)
-                num_skipped +=1
-
-    if verbose:
-        print('Skipped {} of {} total'.format(num_skipped, total))
-
-    predictions_one_hot = np.zeros((len(val_text_tags), len(w2v_model)))
+    predictions_one_hot = np.zeros(val_one_hot.shape)
     for i in range(val_pred.shape[0]):
         normalized_val = val_pred[i, :]/np.linalg.norm(val_pred[i, :])
         # np.dot(wordmatrix, normalized_val) gets the similarity between the two vectors
         # argpartition gets the topk (where k=5)
-        indices = np.argpartition(np.dot(wordmatrix,normalized_val), -1*k)[-1*k:]
+        indices = np.argpartition(np.dot(wordmatrix, normalized_val), -1*k)[-1*k:]
         for index in indices:
             predictions_one_hot[i, index] = 1
 
-    evaluator = Evaluation(ground_truth_one_hot, predictions_one_hot)
+    evaluator = Evaluation(val_one_hot, predictions_one_hot)
 
     return evaluator
-
 
 def train_model(train_dataset,
                 test_dataset,
@@ -121,7 +57,8 @@ def train_model(train_dataset,
                 network_size=[200,200],
                 model_input_path = None,
                 model_output_path = None,
-                verbose=True):
+                verbose=True,
+                model_type=ModelTypes.negsampling):
     """
     Train a regression model to map image features into the word vector space
     Args:
@@ -150,54 +87,139 @@ def train_model(train_dataset,
     # Extract features and place in numpy matrix
     for i in test_dataset:
         image_feats, tags = test_dataset[i]
-        val_image_feats[i, :] = image_feats/np.linalg.norm(image_feats)
+        val_image_feats[i, :] = image_feats
         val_text_tags.append(tags)
+
+    # Create word vector matrix to allow for embedding lookup
+    w2ind = {}
+    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])), dtype=np.float32)
+    for i, word in enumerate(w2v_model):
+        w2ind[word] = i
+        wordmatrix[i, :] = w2v_model[word]
+
+    # Precompute onehot vectors to speed up evalutation
+    val_one_hot = dok_matrix((len(val_text_tags), len(w2v_model)), dtype=np.int32)
+    num_skipped = 0
+    skipped = set()
+    for i, tags in enumerate(val_text_tags):
+        for tag in tags:
+            try:
+                val_one_hot[i, w2ind[tag]] = 1
+            except KeyError:
+                skipped.add(tag)
+                num_skipped +=1
+    # Convert to more efficient structure
+    val_one_hot = csr_matrix(val_one_hot)
+
+
+    # Setup data structures for negative sampling
+    if model_type == ModelTypes.negsampling:
+        word_counts = np.zeros(wordmatrix.shape[0])
+        for item_id in train_dataset:
+            _, tags = train_dataset[item_id]
+            for tag in tags:
+                if tag in w2ind:
+                    word_counts[w2ind[tag]] += 1
+        labelpdf = word_counts / word_counts.sum()
+        vocabsize = wordmatrix.shape[0]
+        def negsamp(ignored_inds, num2samp):
+            # Negative sampler that takes in indicies
+
+            # Create new probability vector excluding positive samples
+            nlabelpdf = np.copy(labelpdf)
+            nlabelpdf[ignored_inds] = 0
+            nlabelpdf /= nlabelpdf.sum()
+
+            return np.random.choice(vocabsize, size=num2samp, p=nlabelpdf)
 
     with tf.Graph().as_default():
 
-
         # Build regressor
-        model_info = construct_model(image_feat_size,
-                                        text_feat_size,
+        if model_type == ModelTypes.mse:
+            print('Building regressor with mean square error loss')
+            model = MSEModel(image_feat_size,
+                                         wordmatrix,
                                         learning_rate=learning_rate,
                                         hidden_units=network_size,
                                         use_batch_norm=True)
-        init = tf.initialize_all_variables()
-        saver = tf.train.Saver()
+
+        elif model_type == ModelTypes.negsampling:
+            print('Building regressor with negative sampling loss')
+            model = NegSamplingModel(image_feat_size,
+                                        wordmatrix,
+                                        learning_rate=learning_rate,
+                                        hidden_units=network_size,
+                                        use_batch_norm=True)
+
         # Allocate GPU memory as needed (vs. allocating all the memory)
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         with tf.Session(config=config) as sess:
-            sess.run(init)
+            # Initialize model
+            model.initialize_model(sess)
+
+            # Optionally restore saved model
             if model_input_path:
-                saver.restore(sess, model_input_path)
-
+                model.load(sess, model_input_path)
+            
+            NUM_POSTIVE_EXAMPLES = 5
+            NUM_NEGATIVE_EXAMPLES = 10
+            pos_word_ids = np.ones((batch_size, NUM_POSTIVE_EXAMPLES), dtype=np.int32)
+            neg_word_ids = np.ones((batch_size, NUM_NEGATIVE_EXAMPLES), dtype=np.int32)
+            evaluators = []
             for epoch in range(num_epochs):
-                for batch in range(int(num_items/batch_size)):
-                    image_feats, text_tags = train_dataset.get_next_batch(batch_size)
-                    for i in range(batch_size):
-                        image_feats[i, :] = image_feats[i, :]/ np.linalg.norm(image_feats[i, :])
-                    word_feats = np.array([tags_2_vec(tags, w2v_model) for tags in text_tags])
+                batch_time_total = 0
+                run_time_total = 0
 
-                    feed_dict = {}
-                    feed_dict[model_info['input']] = image_feats
-                    feed_dict[model_info['y_truth']] = word_feats
-                    sess.run(model_info['optimizer'], feed_dict=feed_dict)
+                loss = None
+                for batch in range(int(num_items/batch_size)):
+                    batch_time = time.time()
+                    image_feats, text_tags = train_dataset.get_next_batch(batch_size)
+
+                    # Generate positive examples
+                    NUM_POSTIVE_EXAMPLES = 5
+                    pos_word_ids.fill(-1)
+                    for i, tags in enumerate(text_tags):
+                        j = 0
+                        for tag in tags:
+                            if tag in w2ind and j < NUM_POSTIVE_EXAMPLES:
+                                pos_word_ids[i, j] = w2ind[tag]
+                                j += 1
+
+                    if model_type == ModelTypes.negsampling:
+                        neg_word_ids.fill(-1)
+                        for i in range(neg_word_ids.shape[0]):
+                            neg_word_ids[i] = negsamp(pos_word_ids, NUM_NEGATIVE_EXAMPLES)
+
+                    batch_time = time.time() - batch_time
+                    batch_time_total += batch_time
+
+                    run_time = time.time()
+                    if model_type == ModelTypes.mse:
+                        loss = model.fit(sess, image_feats, pos_word_ids)
+                    elif model_type == ModelTypes.negsampling:
+                        loss = model.fit(sess, image_feats,pos_word_ids, neg_word_ids=neg_word_ids)
+                    run_time = time.time() - run_time
+                    run_time_total += run_time
 
                 if verbose:
-                    evaluator = evaluate_regressor(sess, model_info, val_image_feats, val_text_tags, w2v_model, verbose=verbose)
+                    eval_time = time.time()
+                    evaluator = evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, verbose=False)
+                    evaluators.append(evaluator.evaluate())
+                    eval_time = time.time() - eval_time
                     # Evaluate accuracy
-                    print('Epoch: {}'.format(epoch))
-                    evaluator.evaluate()
+                    #print('Epoch {}: Loss: {} Timing: {} {} {}'.format(epoch, loss, batch_time_total, run_time_total, eval_time))
+                    print('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *evaluators[-1]))
 
             if model_output_path:
                 saver.save(sess, model_output_path)
 
-            return
+            return evaluators
 
 
 def main():
     import os
+    import pickle
     parser = argparse.ArgumentParser(description='Two layer linear regression')
     parser.add_argument("image_feature_file_train",
                         type=str,
@@ -218,7 +240,7 @@ def main():
     # Optional Args
     parser.add_argument("--learning_rate",
                         type=float,
-                        default=1.001,
+                        default=.001,
                         help="Learning Rate")
     parser.add_argument("--epochs",
                         type=int,
@@ -232,6 +254,15 @@ def main():
                         type=str,
                         default="200,200",
                         help="Define a neural network as comma separated layer sizes")
+    parser.add_argument("--model_type",
+                        type=str,
+                        default="mse",
+                        choices=['mse', 'negsampling'],
+                        help="Loss function to use for training")
+    parser.add_argument("--in_memory",
+                        action='store_true',
+                        default="store_false",
+                        help="Load training image features into memory for faster training")
     parser.add_argument("--model_input_path",
                         type=str,
                         default=None,
@@ -242,7 +273,7 @@ def main():
                         help="Model output path (to save training)")
 
     args = parser.parse_args()
-    train_dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train)
+    train_dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train, load_image_feats_in_mem=args.in_memory)
     test_dataset = Dataset(args.image_feature_file_test, args.text_feature_file_test)
 
     # Get the full vocab so we can extract only the word vectors we care about
@@ -258,15 +289,23 @@ def main():
             input_file = gzip.open(args.word_vector_file)
         else:
             input_file = open(args.word_vector_file)
+    else:
+        raise IOError('No word vector file specified')
+
     for i, line in enumerate(input_file):
         first_word = line[:line.find(' ')]
         if first_word in dataset_tags:
             line = line.strip().split(' ')
             w2v_vector = np.array([float(j) for j in line[1:]])
             # Normalize vector before storing
-            w2v_lookup[line[0]] = w2v_vector / np.linalg.norm(w2v_vector)
+            w2v_lookup[line[0]] = w2v_vector
 
-    train_model(train_dataset,
+    if args.model_type == 'mse':
+        model_type = ModelTypes.mse
+    elif args.model_type == 'negsampling':
+        model_type = ModelTypes.negsampling
+
+    result = train_model(train_dataset,
                 test_dataset,
                 w2v_lookup,
                 batch_size=args.batch_size,
@@ -274,7 +313,9 @@ def main():
                 network_size=map(int, args.network.split(',')),
                 num_epochs=args.epochs,
                 model_input_path=args.model_input_path,
-                model_output_path=args.model_output_path)
+                model_output_path=args.model_output_path,
+                model_type=model_type)
+
 
 if __name__ == '__main__':
     main()
