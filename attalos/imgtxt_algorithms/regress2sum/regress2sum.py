@@ -289,13 +289,16 @@ def main():
             input_file = gzip.open(args.word_vector_file)
         else:
             input_file = open(args.word_vector_file)
+    else:
+        raise IOError('No word vector file specified')
+
     for i, line in enumerate(input_file):
         first_word = line[:line.find(' ')]
         if first_word in dataset_tags:
             line = line.strip().split(' ')
             w2v_vector = np.array([float(j) for j in line[1:]])
             # Normalize vector before storing
-            w2v_lookup[line[0]] = w2v_vector / np.linalg.norm(w2v_vector)
+            w2v_lookup[line[0]] = w2v_vector
 
     if args.model_type == 'mse':
         model_type = ModelTypes.mse
