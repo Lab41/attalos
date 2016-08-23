@@ -3,13 +3,13 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-import hashlib
 import tarfile
+import numpy as np
 from attalos.dataset.dataset_prep import DatasetPrep, RecordMetadata, SplitType
-
+from attalos.dataset.iaprtc12_prep import IAPRTC12DatasetPrep
 
 ESPGAME_URL = "http://hunch.net/~learning/ESP-ImageSet.tar.gz"
-
+ESPMETA_URL = 'http://lear.inrialpes.fr/people/guillaumin/data/iccv09/espgame.20091111.tar.bz2'
 
 class ESPGameDatasetPrep(DatasetPrep):
     def __init__(self, dataset_directory, split='train', split_division=.9):
@@ -30,8 +30,8 @@ class ESPGameDatasetPrep(DatasetPrep):
             raise NotImplementedError('Split type not yet implemented')
         else:
             raise NotImplementedError('Split type not yet implemented')
-        self.data_filename = self.get_candidate_filename(ESPGAME_URL)
-        self.image_filename = None
+        self.image_filename = self.get_candidate_filename(ESPGAME_URL)
+        self.metadata_filename = self.get_candidate_filename(ESPMETA_URL)
         self.download_dataset()
         self.image_file_handle = None
         self.split_division = split_division
@@ -43,8 +43,8 @@ class ESPGameDatasetPrep(DatasetPrep):
         Returns:
 
         """
-        self.download_if_not_present(self.data_filename, ESPGAME_URL)
-        self.image_filename = self.get_candidate_filename(ESPGAME_URL)
+        self.download_if_not_present(self.image_filename, ESPGAME_URL)
+        self.download_if_not_present(self.metadata_filename, ESPMETA_URL)
 
     def load_metadata(self):
         """
@@ -60,29 +60,31 @@ class ESPGameDatasetPrep(DatasetPrep):
             raise NotImplementedError('Split type not yet implemented')
 
         if self.image_file_handle is None:
-            self.image_file_handle = tarfile.open(self.data_filename)
+            self.image_file_handle = tarfile.open(self.image_filename)
+            self.metadata_file_handle = tarfile.open(self.metadata_filename)
 
+        dictionary_lookup = {}
+        for i, word in enumerate(self.metadata_file_handle.extractfile('espgame_dictionary.txt')):
+            dictionary_lookup[i] = word.strip()
+
+        filenames = []
+        filelist_filename = 'espgame_{}_list.txt'.format(split_name)
+        for filename in self.metadata_file_handle.extractfile(filelist_filename):
+            img_id = os.path.basename(filename.strip()) + '.jpg'
+            filenames.append(img_id)
+
+        # Get valid tags for files
         item_info = {}
-        for tfile in self.image_file_handle:
-            if 'LABELS' in tfile.name and tfile.isfile():
-                # Filename of the format ESP-ImageSet/LABELS/####.jpg.desc
-                image_id = os.path.basename(tfile.name)[:-len('.desc')]
-
-                # Get hash and use to partition
-                m = hashlib.md5()
-                m.update(image_id)
-                reproducible_rand = int(m.hexdigest()[-2:], base=16)/255
-
-                if (reproducible_rand < self.split_division and split_name == 'train') or \
-                    (reproducible_rand > self.split_division and split_name == 'test'):
-                    image_filename = 'ESP-ImageSet/images/{}'.format(image_id)
-                    tags = []
-                    for tag in self.image_file_handle.extractfile(tfile):
-                        tag = tag.strip()
-                        if len(tag) > 0:
-                            tags.append(tag)
-
-                    item_info[image_id] = {'fname': image_filename,
+        annotationlist_filename = 'espgame_{}_annot.hvecs'.format(split_name)
+        annotationlist_file = self.metadata_file_handle.extractfile(annotationlist_filename)
+        tag_onehot = IAPRTC12DatasetPrep.parse_LEAR_annotation_file(annotationlist_file)
+        for img_index in range(tag_onehot.shape[0]):
+            image_id = filenames[img_index]
+            tags = []
+            for tag_id in np.nonzero(tag_onehot[img_index])[0]:
+                tags.append(dictionary_lookup[tag_id])
+            image_filename = 'ESP-ImageSet/images/{}'.format(image_id)
+            item_info[image_id] = {'fname': image_filename,
                                              'id': image_id,
                                              'tags': tags,
                                              'captions': []}
@@ -112,7 +114,8 @@ class ESPGameDatasetPrep(DatasetPrep):
         key_info = self.get_key(key)
 
         if self.image_file_handle is None:
-            self.image_file_handle = tarfile.open(self.data_filename)
+            self.image_file_handle = tarfile.open(self.image_filename)
+            self.metadata_file_handle = tarfile.open(self.metadata_filename)
 
         train_captions = self.image_file_handle.extractfile(key_info.image_name)
         return train_captions.read()
@@ -149,6 +152,8 @@ class ESPGameDatasetPrep(DatasetPrep):
 
         """
         if self.image_file_handle is None:
-            self.image_file_handle = tarfile.open(self.data_filename)
+            self.image_file_handle = tarfile.open(self.image_filename)
+            self.metadata_file_handle = tarfile.open(self.metadata_filename)
         ordered_keys = [os.path.basename(tfile.name) for tfile in self.image_file_handle if tfile.name.endswith('.jpg')]
         return [key for key in ordered_keys if key in self.item_info]
+
