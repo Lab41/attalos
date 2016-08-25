@@ -1,17 +1,32 @@
+import os
 import argparse
 from enum import Enum
 import gzip
+import time
+
 import numpy as np
 from scipy.sparse import dok_matrix, csr_matrix
 import tensorflow as tf
-import time
 
+# Attalos Imports
+import attalos.util.log.log as l
 from attalos.dataset.dataset import Dataset
 from attalos.evaluation.evaluation import Evaluation
+
+# Sacred Imports
+from sacred import Experiment
+from sacred.observers import MongoObserver
 
 # Local models
 from mse import MSEModel
 from negsampling import NegSamplingModel
+
+
+# Setup global objects
+logger = l.getLogger(__name__)
+ex = Experiment('Regress2sum')
+ex.observers.append(MongoObserver.create(url=os.environ['MONGO_DB_URI'],
+                                         db_name='attalos_test'))
 
 class ModelTypes(Enum):
     mse = 1
@@ -48,6 +63,53 @@ def evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, k=
 
     return evaluator
 
+
+def create_wordmatrix(w2v_model):
+    """
+    Take a w2v dictionary and return matrix/index lookup
+    Args:
+        w2vmodel: Dictionary where keys are words and values are word vectors
+
+    Returns:
+        w2ind: Mapping of word to index
+        wordmatrix: Numpy matrix of word vectors
+    """
+    # Create word vector matrix to allow for embedding lookup
+    w2ind = {}
+    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])), dtype=np.float32)
+    for i, word in enumerate(w2v_model):
+        w2ind[word] = i
+        wordmatrix[i, :] = w2v_model[word]
+    return w2ind, wordmatrix
+
+
+def dataset_to_onehot(dataset, w2ind):
+    """
+    Take a dataset and prepare it for convient evaluation
+    Args:
+        dataset: attalos.dataset.dataset object
+        w2ind: a dictionary like object mapping words to their index
+
+    Returns:
+        img_feats: A matrix of image feautres
+        one_hot: A sparse matrix of one hot tags
+
+    """
+    image_feat, tags = dataset.get_index(0)
+
+    image_feats = np.zeros((dataset.num_images, image_feat.shape[0]))
+    one_hot = dok_matrix((dataset.num_images, len(w2ind)), dtype=np.int32)
+    # Extract features and place in numpy matrix
+    for i in dataset:
+        image_feat, tags = dataset[i]
+        image_feats[i, :] = image_feat
+        for tag in tags:
+            if tag in w2ind:
+                one_hot[i, w2ind[tag]] = 1
+
+    return image_feats, csr_matrix(one_hot)
+
+
 def train_model(train_dataset,
                 test_dataset,
                 w2v_model,
@@ -74,54 +136,30 @@ def train_model(train_dataset,
         verbose: Amounto fdebug information to output
     Returns:
     """
-    num_items = train_dataset.num_images
-
     # Get validation data
     #  Extract features from first image
     image_feats, tags = test_dataset.get_index(0)
     # Get shape and initialize numpy matrix
     image_feat_size = image_feats.shape[0]
-    text_feat_size = w2v_model[tags[0]].shape[0]
-    val_image_feats = np.zeros((test_dataset.num_images, image_feat_size))
-    val_text_tags = []
-    # Extract features and place in numpy matrix
-    for i in test_dataset:
-        image_feats, tags = test_dataset[i]
-        val_image_feats[i, :] = image_feats
-        val_text_tags.append(tags)
 
-    # Create word vector matrix to allow for embedding lookup
-    w2ind = {}
-    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])), dtype=np.float32)
-    for i, word in enumerate(w2v_model):
-        w2ind[word] = i
-        wordmatrix[i, :] = w2v_model[word]
 
-    # Precompute onehot vectors to speed up evalutation
-    val_one_hot = dok_matrix((len(val_text_tags), len(w2v_model)), dtype=np.int32)
-    num_skipped = 0
-    skipped = set()
-    for i, tags in enumerate(val_text_tags):
-        for tag in tags:
-            try:
-                val_one_hot[i, w2ind[tag]] = 1
-            except KeyError:
-                skipped.add(tag)
-                num_skipped +=1
-    # Convert to more efficient structure
-    val_one_hot = csr_matrix(val_one_hot)
+    # Turn w2v dictionary into a matrix
+    w2ind, word_matrix = create_wordmatrix(w2v_model)
+
+    # Precompute onehot representation for evaluation
+    val_image_feats, val_one_hot = dataset_to_onehot(test_dataset, w2ind)
 
 
     # Setup data structures for negative sampling
     if model_type == ModelTypes.negsampling:
-        word_counts = np.zeros(wordmatrix.shape[0])
+        word_counts = np.zeros(word_matrix.shape[0])
         for item_id in train_dataset:
             _, tags = train_dataset[item_id]
             for tag in tags:
                 if tag in w2ind:
                     word_counts[w2ind[tag]] += 1
         labelpdf = word_counts / word_counts.sum()
-        vocabsize = wordmatrix.shape[0]
+        vocabsize = word_matrix.shape[0]
         def negsamp(ignored_inds, num2samp):
             # Negative sampler that takes in indicies
 
@@ -132,21 +170,20 @@ def train_model(train_dataset,
 
             return np.random.choice(vocabsize, size=num2samp, p=nlabelpdf)
 
+    # Time to start building our graph
     with tf.Graph().as_default():
-
         # Build regressor
         if model_type == ModelTypes.mse:
             print('Building regressor with mean square error loss')
             model = MSEModel(image_feat_size,
-                                         wordmatrix,
+                                         word_matrix,
                                         learning_rate=learning_rate,
                                         hidden_units=network_size,
                                         use_batch_norm=True)
-
         elif model_type == ModelTypes.negsampling:
             print('Building regressor with negative sampling loss')
             model = NegSamplingModel(image_feat_size,
-                                        wordmatrix,
+                                        word_matrix,
                                         learning_rate=learning_rate,
                                         hidden_units=network_size,
                                         use_batch_norm=True)
@@ -161,23 +198,24 @@ def train_model(train_dataset,
             # Optionally restore saved model
             if model_input_path:
                 model.load(sess, model_input_path)
-            
+
             NUM_POSTIVE_EXAMPLES = 5
             NUM_NEGATIVE_EXAMPLES = 10
+            # Reuse space for each iteration
             pos_word_ids = np.ones((batch_size, NUM_POSTIVE_EXAMPLES), dtype=np.int32)
             neg_word_ids = np.ones((batch_size, NUM_NEGATIVE_EXAMPLES), dtype=np.int32)
-            evaluators = []
+            performance = []
             for epoch in range(num_epochs):
                 batch_time_total = 0
                 run_time_total = 0
 
                 loss = None
-                for batch in range(int(num_items/batch_size)):
+                for batch in range(int(train_dataset.num_images/batch_size)):
                     batch_time = time.time()
+                    # Get raw data
                     image_feats, text_tags = train_dataset.get_next_batch(batch_size)
 
                     # Generate positive examples
-                    NUM_POSTIVE_EXAMPLES = 5
                     pos_word_ids.fill(-1)
                     for i, tags in enumerate(text_tags):
                         j = 0
@@ -204,17 +242,17 @@ def train_model(train_dataset,
 
                 if verbose:
                     eval_time = time.time()
-                    evaluator = evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, verbose=False)
-                    evaluators.append(evaluator.evaluate())
+                    evaluator = evaluate_regressor(sess, model, val_image_feats, val_one_hot, word_matrix, verbose=False)
+                    performance.append(evaluator.evaluate())
                     eval_time = time.time() - eval_time
                     # Evaluate accuracy
                     #print('Epoch {}: Loss: {} Timing: {} {} {}'.format(epoch, loss, batch_time_total, run_time_total, eval_time))
-                    print('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *evaluators[-1]))
+                    print('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *performance[-1]))
 
             if model_output_path:
-                saver.save(sess, model_output_path)
+                model.save(sess, model_output_path)
 
-            return evaluators
+            return performance
 
 
 def main():
