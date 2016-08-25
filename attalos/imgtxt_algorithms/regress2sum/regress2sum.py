@@ -239,7 +239,7 @@ def train_model(train_dataset,
                     eval_time = time.time() - eval_time
                     # Evaluate accuracy
                     #print('Epoch {}: Loss: {} Timing: {} {} {}'.format(epoch, loss, batch_time_total, run_time_total, eval_time))
-                    logger.info('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *performance[-1]))
+                    logger.debug('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *performance[-1]))
 
             if model_output_path:
                 model.save(sess, model_output_path)
