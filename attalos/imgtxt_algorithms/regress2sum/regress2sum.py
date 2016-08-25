@@ -1,5 +1,4 @@
 import os
-import argparse
 from enum import Enum
 import gzip
 import time
@@ -13,10 +12,6 @@ import attalos.util.log.log as l
 from attalos.dataset.dataset import Dataset
 from attalos.evaluation.evaluation import Evaluation
 
-# Sacred Imports
-from sacred import Experiment
-from sacred.observers import MongoObserver
-
 # Local models
 from mse import MSEModel
 from negsampling import NegSamplingModel
@@ -24,9 +19,6 @@ from negsampling import NegSamplingModel
 
 # Setup global objects
 logger = l.getLogger(__name__)
-ex = Experiment('Regress2sum')
-ex.observers.append(MongoObserver.create(url=os.environ['MONGO_DB_URI'],
-                                         db_name='attalos_test'))
 
 class ModelTypes(Enum):
     mse = 1
@@ -174,14 +166,14 @@ def train_model(train_dataset,
     with tf.Graph().as_default():
         # Build regressor
         if model_type == ModelTypes.mse:
-            print('Building regressor with mean square error loss')
+            logger.info('Building regressor with mean square error loss')
             model = MSEModel(image_feat_size,
                                          word_matrix,
                                         learning_rate=learning_rate,
                                         hidden_units=network_size,
                                         use_batch_norm=True)
         elif model_type == ModelTypes.negsampling:
-            print('Building regressor with negative sampling loss')
+            logger.info('Building regressor with negative sampling loss')
             model = NegSamplingModel(image_feat_size,
                                         word_matrix,
                                         learning_rate=learning_rate,
@@ -247,17 +239,63 @@ def train_model(train_dataset,
                     eval_time = time.time() - eval_time
                     # Evaluate accuracy
                     #print('Epoch {}: Loss: {} Timing: {} {} {}'.format(epoch, loss, batch_time_total, run_time_total, eval_time))
-                    print('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *performance[-1]))
+                    logger.info('Epoch {}: Loss: {} Perf: {} {} {}'.format(epoch, loss, *performance[-1]))
 
             if model_output_path:
                 model.save(sess, model_output_path)
 
             return performance
 
+args = None
+def convert_args_and_call_model():
+    global args
+    train_dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train, load_image_feats_in_mem=args.in_memory)
+    test_dataset = Dataset(args.image_feature_file_test, args.text_feature_file_test)
+
+    # Get the full vocab so we can extract only the word vectors we care about
+    dataset_tags = set()
+    for dataset in [train_dataset, test_dataset]:
+        for tags in dataset.text_feats.values():
+            dataset_tags.update(tags)
+
+    # Read w2vec
+    w2v_lookup = {}
+    if os.path.exists(args.word_vector_file):
+        if args.word_vector_file.endswith('.gz'):
+            input_file = gzip.open(args.word_vector_file)
+        else:
+            input_file = open(args.word_vector_file)
+    else:
+        raise IOError('No word vector file specified')
+
+    for i, line in enumerate(input_file):
+        first_word = line[:line.find(' ')]
+        if first_word in dataset_tags:
+            line = line.strip().split(' ')
+            w2v_vector = np.array([float(j) for j in line[1:]])
+            # Normalize vector before storing
+            w2v_lookup[line[0]] = w2v_vector
+
+    if args.model_type == 'mse':
+        model_type = ModelTypes.mse
+    elif args.model_type == 'negsampling':
+        model_type = ModelTypes.negsampling
+
+    return train_model(train_dataset,
+                test_dataset,
+                w2v_lookup,
+                batch_size=args.batch_size,
+                learning_rate=args.learning_rate,
+                network_size=map(int, args.network.split(',')),
+                num_epochs=args.epochs,
+                model_input_path=args.model_input_path,
+                model_output_path=args.model_output_path,
+                model_type=model_type)
+
 
 def main():
-    import os
-    import pickle
+    import argparse
+
     parser = argparse.ArgumentParser(description='Two layer linear regression')
     parser.add_argument("image_feature_file_train",
                         type=str,
@@ -310,49 +348,29 @@ def main():
                         default=None,
                         help="Model output path (to save training)")
 
+    global args
     args = parser.parse_args()
-    train_dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train, load_image_feats_in_mem=args.in_memory)
-    test_dataset = Dataset(args.image_feature_file_test, args.text_feature_file_test)
 
-    # Get the full vocab so we can extract only the word vectors we care about
-    dataset_tags = set()
-    for dataset in [train_dataset, test_dataset]:
-        for tags in dataset.text_feats.values():
-            dataset_tags.update(tags)
+    try:
+        # Sacred Imports
+        from sacred import Experiment
+        from sacred.observers import MongoObserver
 
-    # Read w2vec
-    w2v_lookup = {}
-    if os.path.exists(args.word_vector_file):
-        if args.word_vector_file.endswith('.gz'):
-            input_file = gzip.open(args.word_vector_file)
-        else:
-            input_file = open(args.word_vector_file)
-    else:
-        raise IOError('No word vector file specified')
+        from sacred.initialize import Scaffold
 
-    for i, line in enumerate(input_file):
-        first_word = line[:line.find(' ')]
-        if first_word in dataset_tags:
-            line = line.strip().split(' ')
-            w2v_vector = np.array([float(j) for j in line[1:]])
-            # Normalize vector before storing
-            w2v_lookup[line[0]] = w2v_vector
+        # Monkey patch to avoid having to declare all our variables
+        def noop(item):
+            pass
+        Scaffold._warn_about_suspicious_changes = noop
 
-    if args.model_type == 'mse':
-        model_type = ModelTypes.mse
-    elif args.model_type == 'negsampling':
-        model_type = ModelTypes.negsampling
-
-    result = train_model(train_dataset,
-                test_dataset,
-                w2v_lookup,
-                batch_size=args.batch_size,
-                learning_rate=args.learning_rate,
-                network_size=map(int, args.network.split(',')),
-                num_epochs=args.epochs,
-                model_input_path=args.model_input_path,
-                model_output_path=args.model_output_path,
-                model_type=model_type)
+        ex = Experiment('Regress2sum')
+        ex.observers.append(MongoObserver.create(url=os.environ['MONGO_DB_URI'],
+                                             db_name='attalos_experiment'))
+        ex.main(lambda: convert_args_and_call_model())
+        ex.run(config_updates=args.__dict__)
+    except ImportError:
+        # We don't have sacred, just run the script
+        convert_args_and_call_model()
 
 
 if __name__ == '__main__':
