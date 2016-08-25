@@ -16,15 +16,17 @@ class MSEModel(object):
         self.model_info['pos_ids'] = tf.placeholder(dtype=tf.int32)
 
         self.model_info['y_truth']=tf.reduce_sum(tf.nn.embedding_lookup(w2v,self.model_info['pos_ids']),1)
-        #self.negativeW2V=tf.reduce_sum(tf.nn.embedding_lookup(reader.w2v,self.negativeLabels),1)
+
         layers = []
         for i, hidden_size in enumerate(hidden_units):
             if i == 0:
                 layer = tf.contrib.layers.relu(self.model_info['input'], hidden_size)
+            elif i == len(hidden_units) -1:
+                layer = tf.contrib.layers.linear(layer, hidden_size)
             else:
                 layer = tf.contrib.layers.relu(layer, hidden_size)
             layers.append(layer)
-            if use_batch_norm:
+            if use_batch_norm and i != len(hidden_units)-1:
                 layer = tf.contrib.layers.batch_norm(layer)
                 layers.append(layer)
 

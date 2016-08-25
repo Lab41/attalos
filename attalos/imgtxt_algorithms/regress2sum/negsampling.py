@@ -18,23 +18,22 @@ class NegSamplingModel(object):
         
         self.model_info['y_truth'] = tf.transpose(tf.nn.embedding_lookup(w2v,self.model_info['pos_ids']), perm=[1,0,2])
         self.model_info['y_neg'] = tf.transpose(tf.nn.embedding_lookup(w2v,self.model_info['neg_ids']), perm=[1,0,2])
-
         layers = []
         for i, hidden_size in enumerate(hidden_units):
             if i == 0:
                 layer = tf.contrib.layers.relu(self.model_info['input'], hidden_size)
+            elif i == len(hidden_units) -1:
+                layer = tf.contrib.layers.linear(layer, hidden_size)
             else:
                 layer = tf.contrib.layers.relu(layer, hidden_size)
             layers.append(layer)
-            if use_batch_norm:
+            if use_batch_norm and i != len(hidden_units)-1:
                 layer = tf.contrib.layers.batch_norm(layer)
                 layers.append(layer)
 
         self.model_info['layers'] = layers
         self.model_info['prediction'] = layer
 
-        #loss = tf.reduce_sum(tf.square(self.model_info['prediction']-self.model_info['y_truth']))
-        
         def meanlogsig(pred, truth):
             reduction_indicies = 2
             return tf.reduce_mean( tf.log( tf.sigmoid( tf.reduce_sum(pred*truth, reduction_indices=reduction_indicies))))
