@@ -15,7 +15,9 @@ class MSEModel(object):
         self.model_info['input'] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
         self.model_info['pos_ids'] = tf.placeholder(dtype=tf.int32)
 
-        self.model_info['y_truth']=tf.reduce_sum(tf.nn.embedding_lookup(w2v,self.model_info['pos_ids']),1)
+        self.model_info['w2v'] = tf.Variable(w2v)
+        self.model_info['y_truth']=tf.reduce_sum(tf.nn.embedding_lookup(self.model_info['w2v'],
+                                                                        self.model_info['pos_ids']),1)
 
         # Construct fully connected layers
         layers = []
