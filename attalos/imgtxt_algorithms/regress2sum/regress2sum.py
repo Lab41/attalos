@@ -56,22 +56,35 @@ def evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, k=
     return evaluator
 
 
-def create_wordmatrix(w2v_model):
+def create_wordmatrix(w2v_model, dataset=None):
     """
     Take a w2v dictionary and return matrix/index lookup
     Args:
         w2vmodel: Dictionary where keys are words and values are word vectors
+        dataset: If specified limits tags in matrix to tags in dataset
 
     Returns:
         w2ind: Mapping of word to index
         wordmatrix: Numpy matrix of word vectors
     """
+    dataset_tags = None
+    if dataset:
+        dataset_tags = set()
+        for tags in dataset.text_feats.values():
+            dataset_tags.update(tags)
+        num_tags_in_output = len(dataset_tags.intersection(w2v_model.keys()))
+    else:
+        num_tags_in_output = len(w2v_model)
+
     # Create word vector matrix to allow for embedding lookup
     w2ind = {}
-    wordmatrix = np.zeros((len(w2v_model), len(w2v_model[w2v_model.keys()[0]])), dtype=np.float32)
-    for i, word in enumerate(w2v_model):
-        w2ind[word] = i
-        wordmatrix[i, :] = w2v_model[word]
+    wordmatrix = np.zeros((num_tags_in_output, len(w2v_model[w2v_model.keys()[0]])), dtype=np.float32)
+    i =0
+    for word in w2v_model:
+        if dataset_tags is None or word in dataset_tags:
+            w2ind[word] = i
+            wordmatrix[i, :] = w2v_model[word]
+            i += 1
     return w2ind, wordmatrix
 
 
@@ -137,9 +150,10 @@ def train_model(train_dataset,
 
     # Turn w2v dictionary into a matrix
     w2ind, word_matrix = create_wordmatrix(w2v_model)
+    val_w2ind, val_word_matrix = create_wordmatrix(w2v_model, test_dataset)
 
     # Precompute onehot representation for evaluation
-    val_image_feats, val_one_hot = dataset_to_onehot(test_dataset, w2ind)
+    val_image_feats, val_one_hot = dataset_to_onehot(test_dataset, val_w2ind)
 
 
     # Setup data structures for negative sampling
@@ -234,7 +248,7 @@ def train_model(train_dataset,
 
                 if verbose:
                     eval_time = time.time()
-                    evaluator = evaluate_regressor(sess, model, val_image_feats, val_one_hot, word_matrix, verbose=False)
+                    evaluator = evaluate_regressor(sess, model, val_image_feats, val_one_hot, val_word_matrix, verbose=False)
                     performance.append(evaluator.evaluate())
                     eval_time = time.time() - eval_time
                     # Evaluate accuracy
