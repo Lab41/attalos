@@ -214,10 +214,6 @@ Output: A table of
   boxes by the final box regression.
 - final_boxes: Array of shape (P, 4) at training time and (N, 4) at test-time
   giving the coordinates of the final output boxes, in (xc, yc, w, h) format.
-- lm_output: At training time, an array of shape (P, L+2, V) giving log
-  probabilities (the +2 is two extra time steps for CNN input and END token).
-  At test time, an array of shape (N, L) where each element is an integer in
-  the range [1, V] giving sampled captions.
 - gt_boxes: At training time, an array of shape (P, 4) giving ground-truth
   boxes corresponding to the sampled positives. At test time, an empty tensor.
 - gt_labels: At training time, an array of shape (P, L) giving ground-truth
