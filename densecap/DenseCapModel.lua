@@ -9,6 +9,7 @@ require 'densecap.modules.BilinearRoiPooling'
 require 'densecap.modules.ApplyBoxTransform'
 require 'densecap.modules.LogisticCriterion'
 require 'densecap.modules.PosSlicer'
+require 'densecap.modules.OurCrossEntropyCriterion'
 
 local box_utils = require 'densecap.box_utils'
 local utils = require 'densecap.utils'
@@ -99,6 +100,17 @@ function DenseCapModel:__init(opt)
   self.nets.box_reg_branch.weight:zero()
   self.nets.box_reg_branch.bias:zero()
 
+  -- Codes to 1 hot space
+  local vocab_size = 5000 -- TODO: Add code to read words
+  self.nets.onehot_fc = nn.Linear(fc_dim, vocab_size)
+  self.nets.onehot_fc.weight:normal(0, opt.std)
+  self.nets.onehot_fc.bias:zero()
+
+  self.nets.onehot = nn.Sequential()
+  self.nets.onehot:add(self.nets.onehot_fc)
+  self.nets.onehot:add(nn.Sigmoid())
+
+  -- Set up the recog net
   self.nets.recog_net = self:_buildRecognitionNet()
   self.net:add(self.nets.recog_net)
 
@@ -106,6 +118,7 @@ function DenseCapModel:__init(opt)
   self.crits = {}
   self.crits.objectness_crit = nn.LogisticCriterion()
   self.crits.box_reg_crit = nn.BoxRegressionCriterion(opt.end_box_reg_weight)
+  self.crits.onehot_crit = nn.OurCrossEntropyCriterion()
 
   self:training()
   self.finetune_cnn = false
@@ -123,7 +136,9 @@ function DenseCapModel:_buildRecognitionNet()
 
   local pos_roi_codes = nn.PosSlicer(){roi_codes, gt_labels}
   local pos_roi_boxes = nn.PosSlicer(){roi_boxes, gt_boxes}
-  
+
+  local onehot_vector = self.nets.onehot(pos_roi_codes)
+
   local final_box_trans = self.nets.box_reg_branch(pos_roi_codes)
   local final_boxes = nn.ApplyBoxTransform(){pos_roi_boxes, final_box_trans}
 
@@ -133,12 +148,14 @@ function DenseCapModel:_buildRecognitionNet()
   pos_roi_codes:annotate{name='code_slicer'}
   pos_roi_boxes:annotate{name='box_slicer'}
   final_box_trans:annotate{name='box_reg_branch'}
+  onehot_vector:annotate{name='onehot'}
 
   local inputs = {roi_feats, roi_boxes, gt_boxes, gt_labels}
   local outputs = {
     objectness_scores,
     pos_roi_boxes, final_box_trans, final_boxes,
     gt_boxes, gt_labels,
+    onehot_vector
   }
   local mod = nn.gModule(inputs, outputs)
   mod.name = 'recognition_network'
@@ -388,6 +405,7 @@ function DenseCapModel:forward_backward(data)
   local final_box_trans = out[3]
   local gt_boxes = out[5]
   local gt_labels = out[6]
+  local onehot_vector = out[7]
 
   local num_boxes = objectness_scores:size(1)
   local num_pos = pos_roi_boxes:size(1)
@@ -413,14 +431,21 @@ function DenseCapModel:forward_backward(data)
                          gt_boxes)
   local grad_pos_roi_boxes, grad_final_box_trans = unpack(din)
 
+  -- Get the first word used to describe each ground truth box
+  local gt_onehot = gt_labels:narrow(2, 1, 1):squeeze()
+
   -- Compute loss
   local ll_losses = self.nets.localization_layer.stats.losses
+  local onehot_loss = self.crits.onehot_crit:forward(onehot_vector, gt_onehot)
+
   local losses = {
     mid_objectness_loss=ll_losses.obj_loss_pos + ll_losses.obj_loss_neg,
     mid_box_reg_loss=ll_losses.box_reg_loss,
     end_objectness_loss=end_objectness_loss,
     end_box_reg_loss=end_box_reg_loss,
+    onehot_loss=onehot_loss,
   }
+
   local total_loss = 0
   for k, v in pairs(losses) do
     total_loss = total_loss + v
@@ -435,6 +460,7 @@ function DenseCapModel:forward_backward(data)
   grad_out[4] = out[4].new(#out[4]):zero()
   grad_out[5] = gt_boxes.new(#gt_boxes):zero()
   grad_out[6] = gt_labels.new(#gt_labels):zero()
+  grad_out[7] = self.crits.onehot_crit:backward(onehot_vector, gt_onehot)
 
   self:backward(input, grad_out)
 
