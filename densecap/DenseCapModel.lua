@@ -20,7 +20,7 @@ local DenseCapModel, parent = torch.class('DenseCapModel', 'nn.Module')
 
 function DenseCapModel:__init(opt)
   local net_utils = require 'densecap.net_utils'
-  opt = opt or {}  
+  opt = opt or {}
   opt.cnn_name = utils.getopt(opt, 'cnn_name', 'vgg-16')
   opt.backend = utils.getopt(opt, 'backend', 'cudnn')
   opt.path_offset = utils.getopt(opt, 'path_offset', '')
@@ -37,22 +37,22 @@ function DenseCapModel:__init(opt)
   utils.ensureopt(opt, 'end_box_reg_weight')
   utils.ensureopt(opt, 'end_objectness_weight')
   utils.ensureopt(opt, 'captioning_weight')
-  
+
   -- Options for RNN
   opt.seq_length = utils.getopt(opt, 'seq_length')
   opt.rnn_encoding_size = utils.getopt(opt, 'rnn_encoding_size', 512)
   opt.rnn_size = utils.getopt(opt, 'rnn_size', 512)
   self.opt = opt -- TODO: this is... naughty. Do we want to create a copy instead?
-  
+
   -- This will hold various components of the model
   self.nets = {}
-  
+
   -- This will hold the whole model
   self.net = nn.Sequential()
-  
+
   -- Load the CNN from disk
   local cnn = net_utils.load_cnn(opt.cnn_name, opt.backend, opt.path_offset)
-  
+
   -- We need to chop the CNN into three parts: conv that is not finetuned,
   -- conv that will be finetuned, and fully-connected layers. We'll just
   -- hardcode the indices of these layers per architecture.
@@ -69,13 +69,13 @@ function DenseCapModel:__init(opt)
   else
     error(string.format('Unrecognized CNN "%s"', opt.cnn_name))
   end
-  
+
   -- Now that we have the indices, actually chop up the CNN.
   self.nets.conv_net1 = net_utils.subsequence(cnn, conv_start1, conv_end1)
   self.nets.conv_net2 = net_utils.subsequence(cnn, conv_start2, conv_end2)
   self.net:add(self.nets.conv_net1)
   self.net:add(self.nets.conv_net2)
-  
+
   -- Figure out the receptive fields of the CNN
   -- TODO: Should we just hardcode this too per CNN?
   local conv_full = net_utils.subsequence(cnn, conv_start1, conv_end2)
@@ -84,17 +84,17 @@ function DenseCapModel:__init(opt)
 
   self.nets.localization_layer = nn.LocalizationLayer(opt)
   self.net:add(self.nets.localization_layer)
-  
+
   -- Recognition base network; FC layers from VGG.
   -- Produces roi_codes of dimension fc_dim.
   -- TODO: Initialize this from scratch for ResNet?
   self.nets.recog_base = net_utils.subsequence(cnn, recog_start, recog_end)
-  
+
   -- Objectness branch; outputs positive / negative probabilities for final boxes
   self.nets.objectness_branch = nn.Linear(fc_dim, 1)
   self.nets.objectness_branch.weight:normal(0, opt.std)
   self.nets.objectness_branch.bias:zero()
-  
+
   -- Final box regression branch; regresses from RPN boxes to final boxes
   self.nets.box_reg_branch = nn.Linear(fc_dim, 4)
   self.nets.box_reg_branch.weight:zero()
@@ -415,7 +415,7 @@ function DenseCapModel:forward_backward(data)
   objectness_labels[{{1, num_pos}}]:fill(1)
   local end_objectness_loss = self.crits.objectness_crit:forward(
                                          objectness_scores, objectness_labels)
-                                       
+
   end_objectness_loss = end_objectness_loss * self.opt.end_objectness_weight
   local grad_objectness_scores = self.crits.objectness_crit:backward(
                                       objectness_scores, objectness_labels)
