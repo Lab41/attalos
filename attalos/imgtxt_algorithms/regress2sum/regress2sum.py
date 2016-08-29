@@ -15,6 +15,7 @@ from attalos.evaluation.evaluation import Evaluation
 # Local models
 from mse import MSEModel
 from negsampling import NegSamplingModel
+from fast0tag import FastZeroTagModel
 
 
 # Setup global objects
@@ -23,6 +24,7 @@ logger = l.getLogger(__name__)
 class ModelTypes(Enum):
     mse = 1
     negsampling = 2
+    fast0tag = 3
 
 
 def evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, k=5, verbose=False):
@@ -41,17 +43,9 @@ def evaluate_regressor(sess, model, val_image_feats, val_one_hot, wordmatrix, k=
         evaluator: A attalos.evaluation.evaluation.Evaluation object
     """
     val_pred = model.predict(sess, val_image_feats)
+    predictions = np.dot(val_pred, wordmatrix.T)
 
-    predictions_one_hot = np.zeros(val_one_hot.shape)
-    for i in range(val_pred.shape[0]):
-        normalized_val = val_pred[i, :]/np.linalg.norm(val_pred[i, :])
-        # np.dot(wordmatrix, normalized_val) gets the similarity between the two vectors
-        # argpartition gets the topk (where k=5)
-        indices = np.argpartition(np.dot(wordmatrix, normalized_val), -1*k)[-1*k:]
-        for index in indices:
-            predictions_one_hot[i, index] = 1
-
-    evaluator = Evaluation(val_one_hot, predictions_one_hot)
+    evaluator = Evaluation(val_one_hot, predictions, k)
 
     return evaluator
 
@@ -157,7 +151,7 @@ def train_model(train_dataset,
 
 
     # Setup data structures for negative sampling
-    if model_type == ModelTypes.negsampling:
+    if model_type == ModelTypes.negsampling or model_type == ModelTypes.fast0tag:
         word_counts = np.zeros(word_matrix.shape[0])
         for item_id in train_dataset:
             _, tags = train_dataset[item_id]
@@ -189,6 +183,13 @@ def train_model(train_dataset,
         elif model_type == ModelTypes.negsampling:
             logger.info('Building regressor with negative sampling loss')
             model = NegSamplingModel(image_feat_size,
+                                        word_matrix,
+                                        learning_rate=learning_rate,
+                                        hidden_units=network_size,
+                                        use_batch_norm=True)
+        elif model_type == ModelTypes.fast0tag:
+            logger.info('Building model with fast zero tag loss')
+            model = FastZeroTagModel(image_feat_size,
                                         word_matrix,
                                         learning_rate=learning_rate,
                                         hidden_units=network_size,
@@ -230,7 +231,7 @@ def train_model(train_dataset,
                                 pos_word_ids[i, j] = w2ind[tag]
                                 j += 1
 
-                    if model_type == ModelTypes.negsampling:
+                    if model_type == ModelTypes.negsampling or model_type == ModelTypes.fast0tag:
                         neg_word_ids.fill(-1)
                         for i in range(neg_word_ids.shape[0]):
                             neg_word_ids[i] = negsamp(pos_word_ids, NUM_NEGATIVE_EXAMPLES)
@@ -241,7 +242,7 @@ def train_model(train_dataset,
                     run_time = time.time()
                     if model_type == ModelTypes.mse:
                         loss = model.fit(sess, image_feats, pos_word_ids)
-                    elif model_type == ModelTypes.negsampling:
+                    elif model_type == ModelTypes.negsampling or model_type == ModelTypes.fast0tag:
                         loss = model.fit(sess, image_feats,pos_word_ids, neg_word_ids=neg_word_ids)
                     run_time = time.time() - run_time
                     run_time_total += run_time
@@ -295,6 +296,8 @@ def convert_args_and_call_model():
         model_type = ModelTypes.mse
     elif args.model_type == 'negsampling':
         model_type = ModelTypes.negsampling
+    elif args.model_type == 'fast0tag':
+        model_type = ModelTypes.fast0tag
 
     return train_model(train_dataset,
                 test_dataset,
@@ -348,7 +351,7 @@ def main():
     parser.add_argument("--model_type",
                         type=str,
                         default="mse",
-                        choices=['mse', 'negsampling'],
+                        choices=['mse', 'negsampling', 'fast0tag'],
                         help="Loss function to use for training")
     parser.add_argument("--in_memory",
                         action='store_true',
