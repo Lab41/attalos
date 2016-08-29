@@ -3,7 +3,8 @@ import tensorflow as tf
 
 class FastZeroTagModel(object):
     """
-    Create a tensorflow graph that does regression to a target using a negative sampling loss function
+    Create a tensorflow graph that finds the principal direction of the target word embeddings 
+    (with negative sampling), using the loss function from "Fast Zero-Shot Image Tagging".
     """
     def __init__(self, input_size,
                     w2v,
@@ -46,8 +47,10 @@ class FastZeroTagModel(object):
 
             Args:
                 f: The output from the network, a tensor of shape (# images, word embedding size)
-                pVecs: The vector embeddings of the ground truth tags, a tensor of shape (# images, # positive tags, word embedding size)
-                nVecs: The vector embeddings of negatively sampled tags, a tensor of shape (# images, # negative samples, word embedding size)
+                pVecs: The vector embeddings of the ground truth tags, a tensor
+                    of shape (# images, # positive tags, word embedding size)
+                nVecs: The vector embeddings of negatively sampled tags, a tensor
+                    of shape (# images, # negative samples, word embedding size)
 
             Returns:
                 Scalar tensor representing the batch cost
