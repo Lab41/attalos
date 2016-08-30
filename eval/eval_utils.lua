@@ -60,7 +60,7 @@ function eval_utils.eval_split(kwargs)
 
     -- Call forward_test to make predictions, and pass them to evaluator
     local boxes, logprobs, captions = model:forward_test(data.image)
-    local gt_captions = model.nets.language_model:decodeSequence(gt_labels[1])
+    local gt_captions = model:decodeSequence(gt_labels[1])
     evaluator:addResult(logprobs, boxes, captions, gt_boxes[1], gt_captions)
     
     -- Print a message to the console

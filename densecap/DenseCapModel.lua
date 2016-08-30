@@ -28,6 +28,8 @@ function DenseCapModel:__init(opt)
   opt.vocab_size = utils.getopt(opt, 'vocab_size')
   opt.std = utils.getopt(opt, 'std', 0.01) -- Used to initialize new layers
 
+  self.idx_to_token = opt.idx_to_token
+
   -- For test-time handling of final boxes
   opt.final_nms_thresh = utils.getopt(opt, 'final_nms_thresh', 0.3)
 
@@ -155,7 +157,7 @@ function DenseCapModel:_buildRecognitionNet()
     objectness_scores,
     pos_roi_boxes, final_box_trans, final_boxes,
     gt_boxes, gt_labels,
-    onehot_vector
+    onehot_vector,
   }
   local mod = nn.gModule(inputs, outputs)
   mod.name = 'recognition_network'
@@ -260,6 +262,7 @@ function DenseCapModel:updateOutput(input)
     -- objectness scores, and the output from the language model
     local final_boxes_float = self.output[4]:float()
     local class_scores_float = self.output[1]:float()
+    local onehot_float = self.output[7]:float()
     local boxes_scores = torch.FloatTensor(final_boxes_float:size(1), 5)
     local boxes_x1y1x2y2 = box_utils.xcycwh_to_x1y1x2y2(final_boxes_float)
     boxes_scores[{{}, {1, 4}}]:copy(boxes_x1y1x2y2)
@@ -267,6 +270,7 @@ function DenseCapModel:updateOutput(input)
     local idx = box_utils.nms(boxes_scores, self.opt.final_nms_thresh)
     self.output[4] = final_boxes_float:index(1, idx):typeAs(self.output[4])
     self.output[1] = class_scores_float:index(1, idx):typeAs(self.output[1])
+    self.output[7] = onehot_float:index(1, idx):typeAs(self.output[7])
 
     -- TODO: In the old StnDetectionModel we also applied NMS to the
     -- variables dumped by the LocalizationLayer. Do we want to do that?
@@ -316,8 +320,38 @@ function DenseCapModel:forward_test(input)
   local output = self:forward(input)
   local final_boxes = output[4]
   local objectness_scores = output[1]
-  local captions = self.nets.language_model:decodeSequence(captions)
+  local maxes, indexes = torch.max(output[7], 2)
+  local captions = self:decodeSequence(indexes)
   return final_boxes, objectness_scores, captions
+end
+
+--[[
+Decodes a sequence into a table of strings
+
+Inputs:
+- seq: tensor of shape N x T
+
+Returns:
+- captions: Array of N strings
+--]]
+function DenseCapModel:decodeSequence(seq)
+  local delimiter = ' '
+  local captions = {}
+  local N, T = seq:size(1), seq:size(2)
+  for i = 1, N do
+    local caption = ''
+    for t = 1, T do
+      local idx = seq[{i, t}]
+      if idx == self.END_TOKEN or idx == 0 then break end
+      if t > 1 then
+        caption = caption .. delimiter
+      end
+      local word = self.idx_to_token[idx]
+      if word ~= nil then caption = caption .. word else break end
+    end
+    table.insert(captions, caption)
+  end
+  return captions
 end
 
 
