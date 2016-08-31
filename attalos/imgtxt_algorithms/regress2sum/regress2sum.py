@@ -119,7 +119,9 @@ def train_model(train_dataset,
                 model_input_path = None,
                 model_output_path = None,
                 verbose=True,
-                model_type=ModelTypes.negsampling):
+                model_type=ModelTypes.negsampling,
+                max_pos=5,
+                max_neg=10):
     """
     Train a regression model to map image features into the word vector space
     Args:
@@ -206,11 +208,9 @@ def train_model(train_dataset,
             if model_input_path:
                 model.load(sess, model_input_path)
 
-            NUM_POSTIVE_EXAMPLES = 5
-            NUM_NEGATIVE_EXAMPLES = 10
             # Reuse space for each iteration
-            pos_word_ids = np.ones((batch_size, NUM_POSTIVE_EXAMPLES), dtype=np.int32)
-            neg_word_ids = np.ones((batch_size, NUM_NEGATIVE_EXAMPLES), dtype=np.int32)
+            pos_word_ids = np.ones((batch_size, max_pos), dtype=np.int32)
+            neg_word_ids = np.ones((batch_size, max_neg), dtype=np.int32)
             performance = []
             for epoch in range(num_epochs):
                 batch_time_total = 0
@@ -227,14 +227,14 @@ def train_model(train_dataset,
                     for i, tags in enumerate(text_tags):
                         j = 0
                         for tag in tags:
-                            if tag in w2ind and j < NUM_POSTIVE_EXAMPLES:
+                            if tag in w2ind and j < max_pos:
                                 pos_word_ids[i, j] = w2ind[tag]
                                 j += 1
 
                     if model_type == ModelTypes.negsampling or model_type == ModelTypes.fast0tag:
                         neg_word_ids.fill(-1)
                         for i in range(neg_word_ids.shape[0]):
-                            neg_word_ids[i] = negsamp(pos_word_ids, NUM_NEGATIVE_EXAMPLES)
+                            neg_word_ids[i] = negsamp(pos_word_ids, max_neg)
 
                     batch_time = time.time() - batch_time
                     batch_time_total += batch_time
@@ -308,7 +308,9 @@ def convert_args_and_call_model():
                 num_epochs=args.epochs,
                 model_input_path=args.model_input_path,
                 model_output_path=args.model_output_path,
-                model_type=model_type)
+                model_type=model_type,
+                max_pos=args.max_pos,
+                max_neg=args.max_neg)
 
 
 def main():
@@ -365,6 +367,14 @@ def main():
                         type=str,
                         default=None,
                         help="Model output path (to save training)")
+    parser.add_argument("--max_pos",
+                        type=int,
+                        default=5,
+                        help="Max number of positive examples")
+    parser.add_argument("--max_neg",
+                        type=int,
+                        default=10,
+                        help="Max number of negative examples")
 
     global args
     args = parser.parse_args()
