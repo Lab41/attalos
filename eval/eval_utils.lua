@@ -19,7 +19,7 @@ Input: An object with the following keys:
 - dtype: torch datatype to which data should be cast before passing to the
   model. Default is 'torch.FloatTensor'.
 --]]
-function eval_utils.eval_split(kwargs)
+function eval_utils.eval_split(kwargs, opt)
   local model = utils.getopt(kwargs, 'model')
   local loader = utils.getopt(kwargs, 'loader')
   local split = utils.getopt(kwargs, 'split', 'val')
@@ -29,7 +29,9 @@ function eval_utils.eval_split(kwargs)
   assert(split == 'val' or split == 'test', 'split must be "val" or "test"')
   local split_to_int = {val=1, test=2}
   split = split_to_int[split]
-  print('using split ', split)
+  if opt.verbosity >= 2 then
+    print('using split ', split)
+  end
   
   model:evaluate()
   loader:resetIterator(split)
@@ -68,7 +70,9 @@ function eval_utils.eval_split(kwargs)
     local num_images = info.split_bounds[2]
     if max_images > 0 then num_images = math.min(num_images, max_images) end
     local num_boxes = boxes:size(1)
-    print(string.format(msg, info.filename, counter, num_images, split, num_boxes))
+    if opt.verbosity >= 2 then
+      print(string.format(msg, info.filename, counter, num_images, split, num_boxes))
+    end
 
     -- Break out if we have processed enough images
     if max_images > 0 and counter >= max_images then break end
@@ -76,12 +80,16 @@ function eval_utils.eval_split(kwargs)
   end
 
   local loss_results = utils.dict_average(all_losses)
-  print('Loss stats:')
-  print(loss_results)
-  print('Average loss: ', loss_results.total_loss)
+  if opt.verbosity >= 1 then
+    print('Loss stats:')
+    print(loss_results)
+    print('Average loss: ', loss_results.total_loss)
+  end
   
   local ap_results = evaluator:evaluate()
-  print(string.format('mAP: %f', 100 * ap_results.map))
+  if opt.verbosity >= 1 then
+    print(string.format('mAP: %f', 100 * ap_results.map))
+  end
   
   local out = {
     loss_results=loss_results,
@@ -135,6 +143,7 @@ end
 
 local DenseCaptioningEvaluator = torch.class('DenseCaptioningEvaluator')
 function DenseCaptioningEvaluator:__init(opt)
+  self.opt = opt
   self.all_logprobs = {}
   self.records = {}
   self.n = 1
@@ -241,8 +250,10 @@ function DenseCaptioningEvaluator:evaluate(verbose)
         local txtgt = ''
         assert(type(record.references) == "table")
         for kk,vv in pairs(record.references) do txtgt = txtgt .. vv .. '. ' end
-        print(string.format('IMG %d PRED: %s, GT: %s, OK: %d, OV: %f SCORE: %f',
-              record.imgid, record.candidate, txtgt, record.ok, record.ov, scores[k]))
+        if self.opt.verbosity >= 2 then
+          print(string.format('IMG %d PRED: %s, GT: %s, OK: %d, OV: %f SCORE: %f',
+                record.imgid, record.candidate, txtgt, record.ok, record.ov, scores[k]))
+        end
       end  
     end
   end

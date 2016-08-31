@@ -25,7 +25,9 @@ local eval_utils = require 'eval.eval_utils'
 -- Initializations
 -------------------------------------------------------------------------------
 local opt = opts.parse(arg)
-print(opt)
+if opt.verbosity >= 1 then
+  print(opt)
+end
 torch.setdefaulttensortype('torch.FloatTensor')
 torch.manualSeed(opt.seed)
 if opt.gpu >= 0 then
@@ -49,8 +51,10 @@ local model = models.setup(opt):type(dtype)
 
 -- get the parameters vector
 local params, grad_params, cnn_params, cnn_grad_params = model:getParameters()
-print('total number of parameters in net: ', grad_params:nElement())
-print('total number of parameters in CNN: ', cnn_grad_params:nElement())
+if opt.verbosity >= 1 then
+  print('total number of parameters in net: ', grad_params:nElement())
+  print('total number of parameters in CNN: ', cnn_grad_params:nElement())
+end
 
 -------------------------------------------------------------------------------
 -- Loss function
@@ -130,8 +134,10 @@ while true do
   end
 
   -- print loss and timing/benchmarks
-  print(string.format('iter %d: %s', iter, utils.build_loss_string(losses)))
-  if opt.timing then print(utils.build_timing_string(stats.times)) end
+  if opt.verbosity >= 2 then
+    print(string.format('iter %d: %s', iter, utils.build_loss_string(losses)))
+  end
+  if opt.timing and opt.verbosity >= 1 then print(utils.build_timing_string(stats.times)) end
 
   if ((opt.eval_first_iteration == 1 or iter > 0) and iter % opt.save_checkpoint_every == 0) or (iter+1 == opt.max_iters) then
 
@@ -150,7 +156,7 @@ while true do
       max_images=opt.val_images_use,
       dtype=dtype,
     }
-    local results = eval_utils.eval_split(eval_kwargs)
+    local results = eval_utils.eval_split(eval_kwargs, opt)
     -- local results = eval_split(1, opt.val_images_use) -- 1 = validation
     results_history[iter] = results
 
@@ -166,7 +172,9 @@ while true do
     local file = io.open(opt.checkpoint_path .. '.json', 'w')
     file:write(text)
     file:close()
-    print('wrote ' .. opt.checkpoint_path .. '.json')
+    if opt.verbosity >= 1 then
+      print('wrote ' .. opt.checkpoint_path .. '.json')
+    end
 
     -- Only save t7 checkpoint if there is an improvement in mAP
     if results.ap_results.map > best_val_score then
@@ -182,7 +190,9 @@ while true do
         cudnn.convert(model.nets.localization_layer.nets.rpn, nn)
       end
       torch.save(opt.checkpoint_path, checkpoint)
-      print('wrote ' .. opt.checkpoint_path)
+      if opt.verbosity >= 1 then
+        print('wrote ' .. opt.checkpoint_path)
+      end
 
       -- Now go back to CUDA and cuDNN
       model:cuda()
@@ -203,7 +213,9 @@ while true do
   if iter % 33 == 0 then collectgarbage() end
   if loss0 == nil then loss0 = losses.total_loss end
   if losses.total_loss > loss0 * 100 then
-    print('loss seems to be exploding, quitting.')
+    if opt.verbosity >= 1 then
+      print('loss seems to be exploding, quitting.')
+    end
     break
   end
   if opt.max_iters > 0 and iter >= opt.max_iters then break end

@@ -4,7 +4,7 @@ require 'loadcaffe'
 local net_utils = {}
 
 
-function net_utils.load_cnn(name, backend, path_offset)
+function net_utils.load_cnn(name, backend, path_offset, opt)
   local model_dir, proto_file, model_file = nil, nil, nil
   if name == 'vgg-16' then
     model_dir = 'data/models/vgg-16'
@@ -16,7 +16,10 @@ function net_utils.load_cnn(name, backend, path_offset)
   if path_offset then
     model_dir = paths.concat(path_offset, model_dir)
   end
-  print('loading network weights from .. ' .. model_file)
+
+  if opt.verbosity >= 1 then
+    print('loading network weights from .. ' .. model_file)
+  end
   proto_file = paths.concat(model_dir, proto_file)
   model_file = paths.concat(model_dir, model_file)
   local cnn = loadcaffe.load(proto_file, model_file, backend)

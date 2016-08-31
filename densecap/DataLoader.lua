@@ -11,7 +11,9 @@ function DataLoader:__init(opt)
   self.proposal_regions_h5 = utils.getopt(opt, 'proposal_regions_h5', '')
   
   -- load the json file which contains additional information about the dataset
-  print('DataLoader loading json file: ', self.json_file)
+  if opt.verbosity >= 1 then
+    print('DataLoader loading json file: ', self.json_file)
+  end
   self.info = utils.read_json(self.json_file)
   self.vocab_size = utils.count_keys(self.info.idx_to_token)
 
@@ -23,7 +25,9 @@ function DataLoader:__init(opt)
   self.info.idx_to_token = idx_to_token
 
   -- open the hdf5 file
-  print('DataLoader loading h5 file: ', self.h5_file)
+  if opt.verbosity >= 1 then
+    print('DataLoader loading h5 file: ', self.h5_file)
+  end
   self.h5_file = hdf5.open(self.h5_file, 'r')
   local keys = {}
   table.insert(keys, 'box_to_img')
@@ -38,14 +42,18 @@ function DataLoader:__init(opt)
   table.insert(keys, 'original_widths')
   table.insert(keys, 'split')
   for k,v in pairs(keys) do
-    print('reading ' .. v)
+    if opt.verbosity >= 1 then
+      print('reading ' .. v)
+    end
     self[v] = self.h5_file:read('/' .. v):all()
   end
 
   -- open region proposals file for reading. This is useful if we, e.g.
   -- want to use the ground truth boxes, or if we want to use external region proposals
   if string.len(self.proposal_regions_h5) > 0 then
-    print('DataLoader loading objectness boxes from h5 file: ', self.proposal_regions_h5)
+    if opt.verbosity >= 1 then
+      print('DataLoader loading objectness boxes from h5 file: ', self.proposal_regions_h5)
+    end
     self.obj_boxes_file = hdf5.open(self.proposal_regions_h5, 'r')
     self.obj_img_to_first_box = self.obj_boxes_file:read('/img_to_first_box'):all()
     self.obj_img_to_last_box = self.obj_boxes_file:read('/img_to_last_box'):all()
@@ -76,11 +84,12 @@ function DataLoader:__init(opt)
   end
 
   self.iterators = {[0]=1,[1]=1,[2]=1} -- iterators (indices to split lists) for train/val/test
-  print(string.format('assigned %d/%d/%d images to train/val/test.', #self.train_ix, #self.val_ix, #self.test_ix))
-
-  print('initialized DataLoader:')
-  print(string.format('#images: %d, #regions: %d, sequence max length: %d', 
-                      self.num_images, self.num_regions, self.seq_length))
+  if opt.verbosity >= 1 then
+    print(string.format('assigned %d/%d/%d images to train/val/test.', #self.train_ix, #self.val_ix, #self.test_ix))
+    print('initialized DataLoader:')
+    print(string.format('#images: %d, #regions: %d, sequence max length: %d',
+                        self.num_images, self.num_regions, self.seq_length))
+  end
 end
 
 function DataLoader:getImageMaxSize()

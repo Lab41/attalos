@@ -3,10 +3,14 @@ local M = {}
 function M.setup(opt)
   local model
   if opt.checkpoint_start_from == '' then
-    print('initializing a DenseCap model from scratch...')
+    if opt.verbosity >= 1 then
+      print('initializing a DenseCap model from scratch...')
+    end
     model = DenseCapModel(opt)
   else
-    print('initializing a DenseCap model from ' .. opt.checkpoint_start_from)
+    if opt.verbosity >= 1 then
+      print('initializing a DenseCap model from ' .. opt.checkpoint_start_from)
+    end
     model = torch.load(opt.checkpoint_start_from).model
     model.opt.end_objectness_weight = opt.end_objectness_weight
     model.nets.localization_layer.opt.mid_objectness_weight = opt.mid_objectness_weight

@@ -20,7 +20,7 @@ local DenseCapModel, parent = torch.class('DenseCapModel', 'nn.Module')
 
 function DenseCapModel:__init(opt)
   local net_utils = require 'densecap.net_utils'
-  opt = opt or {}
+  self.opt = opt or {}
   opt.cnn_name = utils.getopt(opt, 'cnn_name', 'vgg-16')
   opt.backend = utils.getopt(opt, 'backend', 'cudnn')
   opt.path_offset = utils.getopt(opt, 'path_offset', '')
@@ -53,7 +53,7 @@ function DenseCapModel:__init(opt)
   self.net = nn.Sequential()
 
   -- Load the CNN from disk
-  local cnn = net_utils.load_cnn(opt.cnn_name, opt.backend, opt.path_offset)
+  local cnn = net_utils.load_cnn(opt.cnn_name, opt.backend, opt.path_offset, opt)
 
   -- We need to chop the CNN into three parts: conv that is not finetuned,
   -- conv that will be finetuned, and fully-connected layers. We'll just
@@ -252,8 +252,7 @@ function DenseCapModel:updateOutput(input)
   self.output = self.net:forward(input)
 
   -- At test-time, apply NMS to final boxes
-  local verbose = false
-  if verbose then
+  if self.opt.verbosity >= 3 then
     print(string.format('before final NMS there are %d boxes', self.output[4]:size(1)))
     print(string.format('Using NMS threshold of %f', self.opt.final_nms_thresh))
   end
