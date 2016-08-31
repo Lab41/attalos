@@ -35,7 +35,7 @@ function eval_utils.eval_split(kwargs, opt)
   
   model:evaluate()
   loader:resetIterator(split)
-  local evaluator = DenseCaptioningEvaluator{id=id}
+  local evaluator = DenseCaptioningEvaluator{id=id, verbosity=opt.verbosity}
 
   local counter = 0
   local all_losses = {}
@@ -143,7 +143,7 @@ end
 
 local DenseCaptioningEvaluator = torch.class('DenseCaptioningEvaluator')
 function DenseCaptioningEvaluator:__init(opt)
-  self.opt = opt
+  self.verbosity = utils.getopt(opt, 'verbosity', 2)
   self.all_logprobs = {}
   self.records = {}
   self.n = 1
@@ -250,7 +250,7 @@ function DenseCaptioningEvaluator:evaluate(verbose)
         local txtgt = ''
         assert(type(record.references) == "table")
         for kk,vv in pairs(record.references) do txtgt = txtgt .. vv .. '. ' end
-        if self.opt.verbosity >= 2 then
+        if self.verbosity >= 2 then
           print(string.format('IMG %d PRED: %s, GT: %s, OK: %d, OV: %f SCORE: %f',
                 record.imgid, record.candidate, txtgt, record.ok, record.ov, scores[k]))
         end
