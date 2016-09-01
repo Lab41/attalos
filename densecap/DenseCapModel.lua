@@ -103,7 +103,7 @@ function DenseCapModel:__init(opt)
   self.nets.box_reg_branch.bias:zero()
 
   -- Codes to 1 hot space
-  local vocab_size = 5000 -- TODO: Add code to read words
+  local vocab_size = #self.idx_to_token
   self.nets.onehot_fc = nn.Linear(fc_dim, vocab_size)
   self.nets.onehot_fc.weight:normal(0, opt.std)
   self.nets.onehot_fc.bias:zero()
