@@ -96,6 +96,7 @@ function M.parse(arg)
              'Whether to clip final boxes to image boundar')
   cmd:option('-eval_first_iteration',0,
     'evaluate on first iteration? 1 = do, 0 = dont.')
+  cmd:option('-verbosity', 2, 'How verbose should the program be? 0 = Nothing printed, 1 = summaries printed, 2 = DenseCap Default (Summary of every image), 3 = EVERYTHING')
 
   cmd:text()
   local opt = cmd:parse(arg or {})
