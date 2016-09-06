@@ -495,6 +495,11 @@ function DenseCapModel:forward_backward(data)
   grad_out[6] = gt_labels.new(#gt_labels):zero()
   grad_out[7] = self.crits.onehot_crit:backward(onehot_vector, gt_onehot)
 
+  -- The model fixes the ConvNet layers from VGG, so backward only propagates
+  -- through the Localization Layer and the Recognition Network (and part of
+  -- the VGG ConvNet if fine tuning is on). Therefore, input is not used by
+  -- backward, so we define an explicitly `nil` variable and pass that in.
+  local input = nil
   self:backward(input, grad_out)
 
   return losses
