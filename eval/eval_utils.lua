@@ -62,7 +62,9 @@ function eval_utils.eval_split(kwargs, opt)
 
     -- Call forward_test to make predictions, and pass them to evaluator
     local boxes, logprobs, captions = model:forward_test(data.image)
-    local gt_captions = model:decodeSequence(gt_labels[1])
+    local last_labels = model.extractLastWord(gt_labels[1])
+    local gt_last_labels = torch.CudaTensor(last_labels)
+    local gt_captions = model:decodeSequence(gt_last_labels:resize(gt_last_labels:size(1), 1))
     evaluator:addResult(logprobs, boxes, captions, gt_boxes[1], gt_captions)
     
     -- Print a message to the console

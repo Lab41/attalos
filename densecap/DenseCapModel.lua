@@ -465,22 +465,7 @@ function DenseCapModel:forward_backward(data)
   local grad_pos_roi_boxes, grad_final_box_trans = unpack(din)
 
   -- Get the last word used to describe each ground truth box
-  local last_labels = {}
-  for i=1,gt_labels:size(1) do
-    local last = 0
-    for j=1,gt_labels:size(2) do
-      local val = gt_labels[i][j]
-      -- Find the last non-zero value
-      if val > 0 then
-        last = val
-      -- Once we hit a 0, all the rest will also be 0
-      else
-        break
-      end
-    end
-    table.insert(last_labels, last)
-  end
-
+  local last_labels = self.extractLastWord(gt_labels)
   local gt_onehot = torch.CudaTensor(last_labels)
 
   -- Compute loss
@@ -514,4 +499,23 @@ function DenseCapModel:forward_backward(data)
   self:backward(input, grad_out)
 
   return losses
+end
+
+function DenseCapModel.extractLastWord(gt_labels)
+  local last_labels = {}
+  for i=1,gt_labels:size(1) do
+    local last = 0
+    for j=1,gt_labels:size(2) do
+      local val = gt_labels[i][j]
+      -- Find the last non-zero value
+      if val > 0 then
+        last = val
+      -- Once we hit a 0, all the rest will also be 0
+      else
+        break
+      end
+    end
+    table.insert(last_labels, last)
+  end
+  return last_labels
 end
