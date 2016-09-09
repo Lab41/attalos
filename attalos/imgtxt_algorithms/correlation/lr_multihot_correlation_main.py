@@ -8,7 +8,7 @@ from attalos.dataset.transformers.onehot import OneHot
 from attalos.evaluation.evaluation import Evaluation
 
 import attalos.util.log.log as l
-
+import logging
 
 logger = l.getLogger(__name__)
 
@@ -20,23 +20,36 @@ def get_xy(dataset, tag_transformer=None):
         image_feats, text_feats = dataset.get_index(idx)
         if tag_transformer:
             text_feats = tag_transformer.get_multiple(text_feats)
+        if idx % 1000 == 0:
+            logger.debug("%s of %s" % (idx, dataset.num_images))
         x.append(image_feats)
         y.append(text_feats)
     return np.asarray(x), np.asarray(y)
 
+logger.info("Done.")
 
-def train(train_dataset, test_dataset=None, tag_transformer=None, n_jobs=-1):
-    x, targets = get_xy(train_dataset, tag_transformer=tag_transformer)
+
+def train(train_data, test_data, **kwargs):
+    interpreter = kwargs.get("interpreter", None)
+    n_jobs = kwargs.get("n_jobs", -1)
+    
+    x_train, y_train = train_data
     model = linear_model.LinearRegression(n_jobs=n_jobs)
-    logger.info("Training model.")
-    model.fit(x, targets)
-    if test_dataset:
-        x_test, truth = get_xy(test_dataset, tag_transformer=tag_transformer)
-        logger.info("Evaluating model.")
+    logger.info("Fitting model.")
+    model.fit(x_train, y_train)
+    logger.info("Finished fitting.")
+    if test_data:
+        x_test, y_test = test_data
+        logger.info("Predicting from test data.")
         predictions = model.predict(x_test)
-        evaluator = Evaluation(truth, predictions, k=5)
+        logger.info("Finished predicting.")
+        logger.info("Evaluating performance.")
+        evaluator = Evaluation(y_test, predictions, k=5)
         evaluator.evaluate()
+        logger.info("Finished evaluating.")
     return model
+
+logger.info("Done.")
 
 
 def main():
@@ -73,12 +86,18 @@ def main():
     train_dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train)
     test_dataset = Dataset(args.image_feature_file_test, args.text_feature_file_test)
 
-    logger.info("Creating one hot tag mapper.")
+    logger.info("Creating one hot transformer.")
     one_hot = OneHot([train_dataset, test_dataset])
 
-    train(train_dataset,
-          test_dataset,
-          one_hot)
+    logger.info("Preparing train data from train datasets.")
+    train_data = get_xy(train_dataset, tag_transformer=one_hot)
+
+    logger.info("Preparing test data from test dataset.")
+    test_data = get_xy(test_dataset, tag_transformer=one_hot)
+
+    logger.info("Training model.")
+    model = train(train_data, test_data)
+    logger.info("Done.")
 
 
 if __name__ == "__main__":
