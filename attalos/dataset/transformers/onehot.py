@@ -44,8 +44,13 @@ class OneHot(TextTransformer):
             dataset_tags = filter(lambda x: x in valid_vocab, dataset_tags)
             
         self.vocab_size = len(dataset_tags)
+        self.ordered_keys = []
         for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
+            self.ordered_keys.append(key)
+            
+    def get_key_ordering(self):
+        return self.ordered_keys
 
     def get_multiple(self, tags):
         """
