@@ -1,5 +1,5 @@
 from attalos.dataset.transformers.wvtransformer import WVTransformer
-from attalos.imgtxt_algorithms.correlation.correlation import top_n_value_filter, scale2, original_or_top_n_value_filter
+from attalos.imgtxt_algorithms.correlation.correlation import top_n_value_filter, scale, scale2, original_or_top_n_value_filter
 
 import numpy as np
 
@@ -16,13 +16,17 @@ class WDV(WVTransformer):
         logger.debug("Filtering to top %s." % top_n)
         wdv_arr = top_n_value_filter(wdv_arr, top_n, suppression_fn=suppression_fn)
         logger.debug("Scaling WDV matrix.")
+        #wdv_arr = scale(wdv_arr)
         wdv_arr = scale2(wdv_arr)
+        #wdv_arr = wdv_arr / np.linalg.norm(wdv_arr, 1)
         logger.debug("Transforming multihot matrix using WDV matrix.")
         transformed = np.dot(multihot_arr, wdv_arr)
         logger.debug("Filtering to original / top %s." % top_n)
         transformed = original_or_top_n_value_filter(transformed, multihot_arr, top_n)
         logger.debug("Scaling transformed matrix.")
+        #transformed = scale(transformed)
         transformed = scale2(transformed)
+        #transformed = transformed / np.linalg.norm(transformed, 1)
         logger.debug("Replacing NaN in transformed matrix with zero.")
         transformed = np.nan_to_num(transformed)
         return transformed
