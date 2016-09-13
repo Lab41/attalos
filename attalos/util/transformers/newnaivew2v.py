@@ -1,11 +1,8 @@
-from attalos.dataset.transformers.transformer import Transformer
-from attalos.imgtxt_algorithms.correlation.correlation import construct_W
-
 import numpy as np
 
 import attalos.util.log.log as l
-import logging
-
+from attalos.imgtxt_algorithms.correlation.correlation import construct_W
+from attalos.util.transformers.transformer import Transformer
 
 logger = l.getLogger(__name__)
 

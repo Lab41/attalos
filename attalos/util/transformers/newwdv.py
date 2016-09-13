@@ -1,10 +1,8 @@
-from attalos.dataset.transformers.transformer import Transformer
-from attalos.imgtxt_algorithms.correlation.correlation import construct_W, top_n_value_filter, scale, scale2, scale3, original_or_top_n_value_filter
-
 import numpy as np
 
 import attalos.util.log.log as l
-
+from attalos.imgtxt_algorithms.correlation.correlation import construct_W, top_n_value_filter, scale3, original_or_top_n_value_filter
+from attalos.util.transformers.transformer import Transformer
 
 logger = l.getLogger(__name__)
 

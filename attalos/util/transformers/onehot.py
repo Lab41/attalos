@@ -3,8 +3,11 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+
 import numpy as np
-from attalos.dataset.transformers.texttransformer import TextTransformer
+
+from attalos.util.transformers.texttransformer import TextTransformer
+
 
 class OneHot(TextTransformer):
     """
