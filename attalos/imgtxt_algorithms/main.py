@@ -14,7 +14,7 @@ from attalos.evaluation.evaluation import Evaluation
 from attalos.imgtxt_algorithms.approaches.multihot import MultihotModel
 from attalos.imgtxt_algorithms.approaches.naivesum import NaiveSumModel
 from attalos.imgtxt_algorithms.approaches.wdv import WDVModel
-from negsampling import NegSamplingModel
+from attalos.imgtxt_algorithms.approaches.negsampling import NegSamplingModel
 
 logger = l.getLogger(__name__)
 
