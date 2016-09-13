@@ -75,8 +75,8 @@ class AttalosModel(object):
         num_batches = int(dataset.num_images / batch_size)
         for cur_batch_num in xrange(num_batches):
             data = dataset.get_next_batch(batch_size)
-            #img_feats_list, text_feats_list = dataset.get_next_batch(batch_size)
-            yield self.prep_fit(data)
+            fetches, feed_dict = self.prep_fit(data)
+            yield fetches, feed_dict
 
     def _run(self, sess, fetches, feed_dict):
         vals = sess.run(fetches, feed_dict=feed_dict)
