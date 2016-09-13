@@ -4,7 +4,7 @@ from attalos.util.transformers.newnaivew2v import NaiveW2V
 
 import attalos.util.log.log as l
 from attalos.imgtxt_algorithms.approaches.base import AttalosModel
-from attalos.util.transformers import OneHot
+from attalos.util.transformers.onehot import OneHot
 
 # Setup global objects
 logger = l.getLogger(__name__)
