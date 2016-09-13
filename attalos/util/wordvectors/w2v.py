@@ -1,6 +1,6 @@
 import numpy as np
 
-from attalos.util.wordvectors import WordVectorWrapper
+from attalos.util.wordvectors.wrapper import WordVectorWrapper
 
 
 class W2VWrapper(WordVectorWrapper):
