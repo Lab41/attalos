@@ -17,7 +17,7 @@ class OneHot(TextTransformer):
         """
         Initialize OneHot encoding
         Args:
-            dataset (attalos.dataset.dataset): A  dataset iterator (or list of iterators)
+            datasets (attalos.dataset.dataset): A dataset iterator (or list of iterators)
             dictionary_file: A saved dictionary file
 
         Returns:
