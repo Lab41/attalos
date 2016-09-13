@@ -30,7 +30,7 @@ class WDVModel(AttalosModel):
                 output_size = self.one_hot.vocab_size, 
                 learning_rate = self.learning_rate
         )
-        super(MultihotModel, self).__init__()
+        super(WDVModel, self).__init__()
 
     # is a generator
     def iter_batches(self, dataset, batch_size):
