@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 
 from attalos.imgtxt_algorithms.approaches.base import AttalosModel
-from attalos.util.transformers import OneHot
+from attalos.util.transformers.onehot import OneHot
 
 
 class MultihotModel(AttalosModel):
