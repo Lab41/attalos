@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from attalos.imgtxt_algorithms.approaches.naivesum.newnaivew2v import NaiveW2V
+from attalos.util.transformers.newnaivew2v import NaiveW2V
 
 import attalos.util.log.log as l
 from attalos.imgtxt_algorithms.approaches.base import AttalosModel
