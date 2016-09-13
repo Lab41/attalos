@@ -1,15 +1,11 @@
 import numpy as np
 import tensorflow as tf
-from itertools import izip
-
-from attalos.imgtxt_algorithms.regress2sum.attalos_model import AttalosModel
-from attalos.dataset.transformers.onehot import OneHot
-from attalos.dataset.transformers.newnaivew2v import NaiveW2V
-from attalos.dataset.transformers.newwdv import WDV
-
-from attalos.imgtxt_algorithms.correlation.correlation import scale3
+from attalos.imgtxt_algorithms.approaches.onehot import OneHot
 
 import attalos.util.log.log as l
+from attalos.imgtxt_algorithms.approaches.attalos_model import AttalosModel
+from attalos.imgtxt_algorithms.correlation.correlation import scale3
+from attalos.util.transformers.newwdv import WDV
 
 # Setup global objects
 logger = l.getLogger(__name__)
@@ -49,11 +45,13 @@ class WDVModel(AttalosModel):
         model_info["optimizer"] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(model_info["loss"])
         return model_info
     
-    def __init__(self, wv_model, train_dataset, test_dataset, **kwargs):
+    def __init__(self, wv_model, datasets, **kwargs): #train_dataset, test_dataset, **kwargs):
         self.wv_model = wv_model
-        self.cross_eval = kwargs.get("cross_eval", False)
-        self.one_hot = OneHot([train_dataset] if self.cross_eval else [train_dataset, test_dataset], 
-                              valid_vocab=wv_model.vocab)
+        #self.cross_eval = kwargs.get("cross_eval", False)
+        #self.one_hot = OneHot([train_dataset] if self.cross_eval else [train_dataset, test_dataset],
+        #                      valid_vocab=wv_model.vocab)
+        self.one_hot = OneHot([datasets], valid_vocab=self.wv_model.vocab)
+        train_dataset = datasets[0]  # train_dataset should always be first in datasets iterable
         self.wv_transformer = WDV.create_from_vocab(wv_model, vocab1=self.one_hot.get_key_ordering(), preprocess_fn=WDV.preprocess)
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.model_info = self._construct_model_info(
@@ -62,8 +60,9 @@ class WDVModel(AttalosModel):
                 learning_rate = self.learning_rate
         )
         self.transform_cache = {}
+        self.test_one_hot = None
+        self.test_wv_transformer = None
         super(WDVModel, self).__init__()
-        
         
     def generate_key(self, word_list):
         return " ".join(sorted(word_list))
@@ -78,10 +77,80 @@ class WDVModel(AttalosModel):
             return self.transform_cache[key]
         else:
             return None
-    
+
+    def prep_fit(self, data):
+        img_feats_list, text_feats_list = data
+
+        img_feats = np.array(img_feats_list)
+        # normalize img_feats
+        # new_img_feats = (new_img_feats.T / np.linalg.norm(new_img_feats, axis=1)).T
+
+        new_text_feats_list = []
+        for text_feats in text_feats_list:
+            new_text_feats = self.get_cache(text_feats)
+            if new_text_feats is None:
+                new_text_feats = [self.one_hot.get_multiple(text_feats)]
+                new_text_feats = np.array(new_text_feats)
+                new_text_feats = self.wv_transformer.transform(new_text_feats, postprocess_fn=WDV.postprocess)
+                new_text_feats = new_text_feats[0]  # new_text_feats is a list; get first element
+                self.add_cache(text_feats, new_text_feats)
+            new_text_feats_list.append(new_text_feats)
+        text_feats = np.array(new_text_feats_list)
+
+        fetches = [self.model_info["optimizer"], self.model_info["loss"]]
+        feed_dict = {
+            self.model_info["input"]: img_feats,
+            self.model_info["y_truth"]: text_feats
+        }
+        return fetches, feed_dict
+
+    def prep_predict(self, dataset, cross_eval=False):
+        x = []
+        y = []
+        if cross_eval:
+            self.test_one_hot = OneHot([dataset], valid_vocab=self.wv_model.vocab)
+            self.test_wv_transformer = WDV.create_from_vocab(self.wv_model,
+                                                             vocab1=self.one_hot.get_key_ordering(),
+                                                             vocab2=self.test_one_hot.get_key_ordering(),
+                                                             preprocess_fn=scale3)
+        else:
+            self.test_one_hot = self.one_hot
+            self.test_wv_transformer = None
+
+        for idx in dataset:
+            image_feats, text_feats = dataset.get_index(idx)
+            text_feats = self.test_one_hot.get_multiple(text_feats)
+            x.append(image_feats)
+            y.append(text_feats)
+        x = np.asarray(x)
+        y = np.asarray(y)
+
+        fetches = [self.model_info["predictions"], ]
+        feed_dict = {
+            self.model_info["input"]: x
+        }
+        truth = y
+        return fetches, feed_dict, truth
+
+    def post_predict(self, predict_fetches, cross_eval=False):
+        predictions = predict_fetches[0]
+        if cross_eval:
+            if self.test_wv_transformer is None:
+                raise Exception("test_wv_transformers is not set. Did you call prep_predict?")
+            predictions = np.dot(predictions, self.test_wv_transformer.wdv_arr)
+        return predictions
+
+    def get_training_loss(self, fit_fetches):
+        def get_training_loss(self, fit_fetches):
+            _, loss = fit_fetches
+            return loss
+
+
+    """
+
     # is a generator
     # TODO rename get_training_batches
-    def to_batches(self, dataset, batch_size):
+    def iter_batches(self, dataset, batch_size):
         # TODO batch_size = -1 should yield the entire dataset
         num_batches = int(dataset.num_images / batch_size)
         cache_hits = 0
@@ -114,20 +183,10 @@ class WDVModel(AttalosModel):
             #logger.info("New Text Feats overall List Shape: %s" % str(new_text_feats_list.shape))
             
             yield new_img_feats, new_text_feats_list
-
-            """
-            new_text_feats = [self.one_hot.get_multiple(text_feats) for text_feats in text_feats_list]
-            new_text_feats = np.array(new_text_feats)
-            new_text_feats = self.wv_transformer.transform(new_text_feats, postprocess_fn=WDV.postprocess)
-            # normalize text feats
-            # new_text_feats = (new_text_feats.T / np.linalg.norm(new_text_feats, axis=1)).T
-
-            yield new_img_feats, new_text_feats
-            """
         #logger.info("Hits: %s, Misses: %s" % (cache_hits, cache_misses))
     
     # TODO rename get_test_arrs
-    def to_ndarrs(self, dataset):
+    def get_eval_data(self, dataset):
         x = []
         y = []
         if self.cross_eval:
@@ -176,4 +235,4 @@ class WDVModel(AttalosModel):
         #predictions = NaiveW2V.to_multihot(self.wv_model, self.one_hot, predictions, k=5)    
         return predictions
 
-
+    """

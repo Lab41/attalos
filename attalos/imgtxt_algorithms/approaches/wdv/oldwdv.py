@@ -1,9 +1,9 @@
 import numpy as np
 import tensorflow as tf
-from itertools import izip
 
-from attalos.imgtxt_algorithms.regress2sum.attalos_model import AttalosModel
-from attalos.dataset.transformers.onehot import OneHot
+from attalos.imgtxt_algorithms.approaches.attalos_model import AttalosModel
+from attalos.util.transformers import OneHot
+
 
 class WDVModel(AttalosModel):
     """
@@ -33,7 +33,7 @@ class WDVModel(AttalosModel):
         super(MultihotModel, self).__init__()
 
     # is a generator
-    def to_batches(self, dataset, batch_size):
+    def iter_batches(self, dataset, batch_size):
         # TODO batch_size = -1 should yield the entire dataset
         num_batches = int(dataset.num_images / batch_size)
         for batch in xrange(num_batches):
@@ -50,7 +50,7 @@ class WDVModel(AttalosModel):
 
             yield new_img_feats, new_text_feats
     
-    def to_ndarrs(self, dataset):
+    def get_eval_data(self, dataset):
         x = []
         y = []
         for idx in dataset:
