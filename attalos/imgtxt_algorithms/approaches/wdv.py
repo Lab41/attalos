@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from attalos.imgtxt_algorithms.approaches.onehot import OneHot
+from attalos.util.transformers.onehot import OneHot
 
 import attalos.util.log.log as l
 from attalos.imgtxt_algorithms.approaches.base import AttalosModel
