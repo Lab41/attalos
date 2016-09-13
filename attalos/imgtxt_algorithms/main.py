@@ -43,7 +43,7 @@ def train_batch(sess, model, batch_data):
     Returns:
         Training loss for this batch.
     """
-    fetches, feed_dict = model.prep_fit(batch_data)
+    fetches, feed_dict = batch_data
     fetches = model.fit(sess, fetches, feed_dict)
     return fetches
 
@@ -63,7 +63,7 @@ def train_epoch(sess, model, train_dataset, batch_size):
     training_losses = []
     for cur_batch_num, batch_data in enumerate(model.iter_batches(train_dataset, batch_size)):
         fetches = train_batch(sess, model, batch_data)
-        training_loss = model.get_loss(fetches)
+        training_loss = model.get_training_loss(fetches)
         training_losses.append(training_loss)
     avg_training_loss = sum(training_losses) / float(len(training_losses))
     return avg_training_loss
