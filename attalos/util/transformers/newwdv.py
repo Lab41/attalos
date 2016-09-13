@@ -38,7 +38,7 @@ class WDV(Transformer):
         return transformed
     
     def save_to_file(self, f):
-        np.save(f, self.wdv_matrix)
+        np.save(f, self.wdv_arr)
         
         
     @classmethod
