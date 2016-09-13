@@ -43,7 +43,7 @@ class OneHot(TextTransformer):
             for tags in dataset.text_feats.values():
                 dataset_tags.update(tags)
         
-        if valid_vocab:
+        if valid_vocab is not None:
             dataset_tags = filter(lambda x: x in valid_vocab, dataset_tags)
             
         self.vocab_size = len(dataset_tags)
