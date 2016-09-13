@@ -1,4 +1,4 @@
-import sys, time
+import sys
 
 try:
     from IPython.core.display import clear_output
