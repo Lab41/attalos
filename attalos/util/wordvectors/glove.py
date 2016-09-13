@@ -1,4 +1,4 @@
-from attalos.dataset.wordvectors.wrapper import WordVectorWrapper
+from attalos.util.wordvectors import WordVectorWrapper
 
 
 class GloveWrapper(WordVectorWrapper):
