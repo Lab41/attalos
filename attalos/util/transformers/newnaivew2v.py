@@ -27,7 +27,7 @@ class NaiveW2V(Transformer):
         return np.asarray(interpreted)
     
     def save_to_file(self, f):
-        np.save(f, self.wdv_matrix)
+        np.save(f, self.wdv_arr)
         
     @classmethod    
     def load_from_file(cls, f):
