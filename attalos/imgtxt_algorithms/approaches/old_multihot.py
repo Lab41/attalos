@@ -1,11 +1,11 @@
 import numpy as np
 import tensorflow as tf
 
-from attalos.imgtxt_algorithms.approaches.attalos_model import AttalosModel
+from attalos.imgtxt_algorithms.approaches.base import AttalosModel
 from attalos.util.transformers import OneHot
 
 
-class WDVModel(AttalosModel):
+class MultihotModel(AttalosModel):
     """
     This model performs logistic regression via NN using multihot vectors as targets.
     """

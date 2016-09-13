@@ -3,7 +3,7 @@ import tensorflow as tf
 from attalos.imgtxt_algorithms.approaches.onehot import OneHot
 
 import attalos.util.log.log as l
-from attalos.imgtxt_algorithms.approaches.attalos_model import AttalosModel
+from attalos.imgtxt_algorithms.approaches.base import AttalosModel
 from attalos.imgtxt_algorithms.correlation.correlation import scale3
 from attalos.util.transformers.newwdv import WDV
 
