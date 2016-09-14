@@ -171,10 +171,10 @@ def main():
                         type=int,
                         default=128,
                         help="Batch size to use for training")
-    parser.add_argument("--network",
-                        type=str,
-                        default="200,200",
-                        help="Define a neural network as comma separated layer sizes")
+    #parser.add_argument("--network",
+    #                    type=str,
+    #                    default="200,200",
+    #                    help="Define a neural network as comma separated layer sizes")
     parser.add_argument("--model_type",
                         type=str,
                         default="multihot",
