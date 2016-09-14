@@ -194,13 +194,30 @@ def main():
                         help="Model output path (to save training)")
 
     # new args
+    parser.add_argument("--hidden_units",
+                        type=str,
+                        default="200,200",
+                        help="Define a neural network as comma separated layer sizes")
     parser.add_argument("--cross_eval",
                         action="store_true",
-                        default=False)
+                        default=False,
+                        help="Use if test dataset is different from training dataset")
     parser.add_argument("--word_vector_type",
                         type=str,
                         choices=[t.name for t in WordVectorTypes],
                         help="Format of word_vector_file")
+    parser.add_argument("--epoch_verbosity",
+                        type=int,
+                        default=10,
+                        help="Epoch verbosity rate")
+    parser.add_argument("--verbose_eval",
+                        action="store_true",
+                        default=False,
+                        help="Use to run evaluation against test data every epoch_verbosity")
+    parser.add_argument("--optim_words",
+                        action="store_true",
+                        default=False,
+                        help="If using negsampling model_type, use to jointly optimize words")
 
     args = parser.parse_args()
 
