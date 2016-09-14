@@ -87,6 +87,7 @@ class NegSamplingModel(AttalosModel):
             wv_arr = self.w
         )
         self.test_one_hot = None
+        self.test_w = None
         super(NegSamplingModel, self).__init__()
 
     def _get_ids(self, pBatch, numSamps=[5,10]):
@@ -155,9 +156,12 @@ class NegSamplingModel(AttalosModel):
         return fit_fetches
 
     def prep_predict(self, dataset, cross_eval=False):
-        # TODO implement cross_eval
         if cross_eval:
-            raise NotImplementedError()
+            self.test_one_hot = OneHot([dataset], valid_vocab=self.wv_model.vocab)
+            self.test_w = construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
+        else:
+            self.test_one_hot = self.one_hot
+            self.test_w = self.w
 
         x = []
         y = []
@@ -177,11 +181,9 @@ class NegSamplingModel(AttalosModel):
         return fetches, feed_dict, truth
 
     def post_predict(self, predict_fetches, cross_eval=False):
-        # TODO implement cross_eval
-        if cross_eval:
-            raise NotImplementedError()
-
         predictions = predict_fetches[0]
+        if cross_eval and self.test_w is None:
+            raise Exception("test_w is not set. Did you call prep_predict?")
         predictions = np.dot(predictions, self.w.T)
         return predictions
 
