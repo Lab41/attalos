@@ -34,8 +34,8 @@ class WDVModel(AttalosModel):
         logger.info("Hidden layer size: %s" % hidden_layer_size)
         hidden_layer = tf.contrib.layers.relu(hidden_layer, hidden_layer_size)
         
-        model_info["dropout_keep_prob"] = tf.placeholder(tf.float32)
-        hidden_layer = tf.nn.dropout(hidden_layer, model_info["dropout_keep_prob"])
+        #model_info["dropout_keep_prob"] = tf.placeholder(tf.float32)
+        #hidden_layer = tf.nn.dropout(hidden_layer, model_info["dropout_keep_prob"])
         #hidden_layer = tf.contrib.layers.relu(hidden_layer, hidden_layer_size)
         
         model_info["predictions"] = tf.contrib.layers.fully_connected(hidden_layer,
@@ -50,7 +50,7 @@ class WDVModel(AttalosModel):
         #self.cross_eval = kwargs.get("cross_eval", False)
         #self.one_hot = OneHot([train_dataset] if self.cross_eval else [train_dataset, test_dataset],
         #                      valid_vocab=wv_model.vocab)
-        self.one_hot = OneHot([datasets], valid_vocab=self.wv_model.vocab)
+        self.one_hot = OneHot(datasets, valid_vocab=self.wv_model.vocab)
         train_dataset = datasets[0]  # train_dataset should always be first in datasets iterable
         self.wv_transformer = WDV.create_from_vocab(wv_model, vocab1=self.one_hot.get_key_ordering(), preprocess_fn=WDV.preprocess)
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
@@ -141,9 +141,8 @@ class WDVModel(AttalosModel):
         return predictions
 
     def get_training_loss(self, fit_fetches):
-        def get_training_loss(self, fit_fetches):
-            _, loss = fit_fetches
-            return loss
+        _, loss = fit_fetches
+        return loss
 
 
     """
