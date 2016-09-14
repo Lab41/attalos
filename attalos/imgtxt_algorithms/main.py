@@ -85,7 +85,7 @@ def train(sess, model, num_epochs, train_dataset, batch_size, epoch_verbosity=10
         verbose = cur_epoch % epoch_verbosity == 0
         avg_training_loss = train_epoch(sess, model, train_dataset, batch_size)
         if verbose:
-            logger.info("Finished epoch %s. (Avg. training loss: %s)" % (cur_epoch, avg_training_loss))
+            logger.debug("Finished epoch %s. (Avg. training loss: %s)" % (cur_epoch, avg_training_loss))
             avg_training_losses.append(avg_training_loss)
             if mid_eval is not None:
                 fetches, feed_dict, truth = mid_eval
@@ -95,7 +95,7 @@ def evaluate(sess, model, fetches, feed_dict, truth):
     predictions = model.predict(sess, fetches, feed_dict)
     predictions = model.post_predict(predictions)
     evaluator = Evaluation(truth, predictions, k=5)
-    logger.info("Evaluation (precision, recall, f1): %s" % evaluator.evaluate())
+    logger.debug("Evaluation (precision, recall, f1): %s" % evaluator.evaluate())
 
 def load_wv_model(word_vector_file, word_vector_type):
     if word_vector_type == WordVectorTypes.glove.name:
