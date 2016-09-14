@@ -116,28 +116,30 @@ def convert_args_and_call_model(args):
     logger.info("Reading word vectors from file.")
     wv_model = load_wv_model(args.word_vector_file, args.word_vector_type)
 
-    model_cls = ModelTypes[args.model_type].value
-    logger.info("Selecting model class: %s" % model_cls.__name__)
-    datasets = [train_dataset] if args.cross_eval else [train_dataset, test_dataset]
-    model = model_cls(wv_model, datasets, **vars(args))
+    with tf.Graph().as_default():
+        model_cls = ModelTypes[args.model_type].value
+        logger.info("Selecting model class: %s" % model_cls.__name__)
+        datasets = [train_dataset] if args.cross_eval else [train_dataset, test_dataset]
+        model = model_cls(wv_model, datasets, **vars(args))
 
-    logger.info("Preparing test_dataset.")
-    fetches, feed_dict, truth = model.prep_predict(test_dataset)
+        logger.info("Preparing test_dataset.")
+        fetches, feed_dict, truth = model.prep_predict(test_dataset)
 
-    config = tf.ConfigProto(log_device_placement=True)
-    config.gpu_options.allow_growth = True
-    with tf.Session(config=config) as sess:
-        model.initialize_model(sess)
-        if args.model_input_path:
-            model.load(sess, args.model_input_path)
-        logger.info("Starting training phase.")
-        mid_eval = (fetches, feed_dict, truth) if args.verbose_eval else None
-        avg_training_losses = train(sess, model, args.num_epochs, train_dataset, args.batch_size, args.epoch_verbosity, mid_eval=mid_eval)
-        if args.model_output_path:
-            model.save(sess, args.model_output_path)
+        config = tf.ConfigProto(log_device_placement=True)
+        config.gpu_options.allow_growth = True
 
-        logger.info("Starting evaluation phase.")
-        evaluate(sess, model, fetches, feed_dict, truth)
+        with tf.Session(config=config) as sess:
+            model.initialize_model(sess)
+            if args.model_input_path:
+                model.load(sess, args.model_input_path)
+            logger.info("Starting training phase.")
+            mid_eval = (fetches, feed_dict, truth) if args.verbose_eval else None
+            avg_training_losses = train(sess, model, args.num_epochs, train_dataset, args.batch_size, args.epoch_verbosity, mid_eval=mid_eval)
+            if args.model_output_path:
+                model.save(sess, args.model_output_path)
+
+            logger.info("Starting evaluation phase.")
+            evaluate(sess, model, fetches, feed_dict, truth)
 
 def main():
     import argparse
