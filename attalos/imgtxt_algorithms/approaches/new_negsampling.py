@@ -23,7 +23,7 @@ class NegSamplingModel(AttalosModel):
 
         if optim_words:
             model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
-            model_info["neg_vects"] = tf.placeholder(dtype=tf.float32)
+            model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Optimization on GPU, word vectors are stored separately.")
         else:
             model_info["w2v"] = tf.Variable(wv_arr)
@@ -60,7 +60,7 @@ class NegSamplingModel(AttalosModel):
         neg_loss = meanlogsig(-model_info["prediction"], model_info["neg_vecs"])
         model_info["loss"] = -(pos_loss + neg_loss)
 
-        model_info["optimizer"] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+        model_info["optimizer"] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(model_info["loss"])
         #model_info["init_op"] = tf.initialize_all_variables()
         #model_info["saver"] = tf.train.Saver()
 
@@ -70,7 +70,7 @@ class NegSamplingModel(AttalosModel):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
-        self.w = construct_W(wv_model, self.one_hot.get_key_ordering())
+        self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
 
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
@@ -141,13 +141,13 @@ class NegSamplingModel(AttalosModel):
             self.w[vni] -= self.learning_rate * np.outer(sigmoid(self.w[vni].dot(vin[i])), vin[i])
 
     def fit(self, sess, fetches, feed_dict):
-        fetches = super(NegSamplingModel)
+        fit_fetches = super(NegSamplingModel, self).fit(sess, fetches, feed_dict)
         if self.optim_words:
             if self.pos_ids is None or self.neg_ids is None:
                 raise Exception("pos_ids or neg_ids is not set; cannot update word vectors. Did you run prep_fit()?")
-            _, _, prediction = fetches
+            _, _, prediction = fit_fetches
             self._updatewords(self.pos_ids, self.neg_ids, prediction)
-        return fetches
+        return fit_fetches
 
     def prep_predict(self, dataset, cross_eval=False):
         # TODO implement cross_eval
@@ -164,7 +164,7 @@ class NegSamplingModel(AttalosModel):
         x = np.asarray(x)
         y = np.asarray(y)
 
-        fetches = [self.model_info["predictions"], ]
+        fetches = [self.model_info["prediction"], ]
         feed_dict = {
             self.model_info["input"]: x
         }
