@@ -26,7 +26,7 @@ class NegSamplingModel(AttalosModel):
             model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Optimization on GPU, word vectors are stored separately.")
         else:
-            model_info["w2v"] = tf.Variable(wv_arr)
+            model_info["w2v"] = tf.Variable(wv_arr, dtype=tf.float32)
             model_info["pos_ids"] = tf.placeholder(dtype=tf.int32)
             model_info["neg_ids"] = tf.placeholder(dtype=tf.int32)
             model_info["pos_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
