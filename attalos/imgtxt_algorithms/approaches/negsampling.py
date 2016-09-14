@@ -74,6 +74,9 @@ class NegSamplingModel(AttalosModel):
 
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
+        self.hidden_units = kwargs.get("hidden_units", "200,200")
+        self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
+
         self.model_info = self._construct_model_info(
             input_size = train_dataset.img_feat_size,
             output_size = self.one_hot.vocab_size,
