@@ -179,7 +179,7 @@ def main():
     parser.add_argument("--model_type",
                         type=str,
                         default="multihot",
-                        choices=['multihot', 'naivesum', 'wdv', 'negsampling'],
+                        choices=['multihot', 'naivesum', 'wdv', 'negsamp'],
                         help="Loss function to use for training")
     parser.add_argument("--in_memory",
                         action='store_true',
