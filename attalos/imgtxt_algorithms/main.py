@@ -163,7 +163,7 @@ def main():
                         type=float,
                         default=0.001,
                         help="Learning Rate")
-    parser.add_argument("--epochs",
+    parser.add_argument("--num_epochs",
                         type=int,
                         default=200,
                         help="Number of epochs to run for")
