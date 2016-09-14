@@ -118,7 +118,8 @@ def convert_args_and_call_model(args):
 
     model_cls = ModelTypes[args.model_type].value
     logger.info("Selecting model class: %s" % model_cls.__name__)
-    model = model_cls(wv_model, train_dataset=train_dataset, test_dataset=test_dataset, **vars(args))
+    datasets = [train_dataset] if args.cross_eval else [train_dataset, test_dataset]
+    model = model_cls(wv_model, datasets, **vars(args))
 
     logger.info("Preparing test_dataset.")
     fetches, feed_dict, truth = model.prep_predict(test_dataset)
