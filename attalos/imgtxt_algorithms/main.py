@@ -14,7 +14,7 @@ from attalos.evaluation.evaluation import Evaluation
 from attalos.imgtxt_algorithms.approaches.multihot import MultihotModel
 from attalos.imgtxt_algorithms.approaches.naivesum import NaiveSumModel
 from attalos.imgtxt_algorithms.approaches.wdv import WDVModel
-from attalos.imgtxt_algorithms.approaches.new_negsampling import NegSamplingModel
+from attalos.imgtxt_algorithms.approaches.negsampling import NegSamplingModel
 
 logger = l.getLogger(__name__)
 
@@ -23,9 +23,6 @@ class WordVectorTypes(Enum):
     glove = 2
 
 class ModelTypes(Enum):
-    mse = 1
-    negsampling = 2
-    fast0tag = 3
     multihot = MultihotModel
     naivesum = NaiveSumModel
     wdv = WDVModel
@@ -164,7 +161,7 @@ def main():
     # Optional Args
     parser.add_argument("--learning_rate",
                         type=float,
-                        default=.001,
+                        default=0.001,
                         help="Learning Rate")
     parser.add_argument("--epochs",
                         type=int,
@@ -180,8 +177,8 @@ def main():
                         help="Define a neural network as comma separated layer sizes")
     parser.add_argument("--model_type",
                         type=str,
-                        default="mse",
-                        choices=['mse', 'negsampling', 'fast0tag'],
+                        default="multihot",
+                        choices=['multihot', 'naivesum', 'wdv', 'negsampling'],
                         help="Loss function to use for training")
     parser.add_argument("--in_memory",
                         action='store_true',
