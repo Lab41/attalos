@@ -234,7 +234,7 @@ def main():
 
         Scaffold._warn_about_suspicious_changes = noop
 
-        ex = Experiment('Regress2sum')
+        ex = Experiment('Attalos')
         ex.observers.append(MongoObserver.create(url=os.environ['MONGO_DB_URI'],
                                                  db_name='attalos_experiment'))
         ex.main(lambda: convert_args_and_call_model(args))
