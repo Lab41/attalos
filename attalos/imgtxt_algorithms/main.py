@@ -125,7 +125,7 @@ def convert_args_and_call_model(args):
         logger.info("Preparing test_dataset.")
         fetches, feed_dict, truth = model.prep_predict(test_dataset)
 
-        config = tf.ConfigProto(log_device_placement=True)
+        config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
 
         with tf.Session(config=config) as sess:
