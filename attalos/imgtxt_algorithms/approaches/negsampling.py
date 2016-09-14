@@ -35,6 +35,8 @@ class NegSamplingModel(AttalosModel):
             model_info["neg_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
                                                                          model_info["neg_ids"]),
                                                        perm=[1,0,2])
+            logger.info("Not optimizing word vectors.")
+
         # Construct fully connected layers
         layers = []
         layer = model_info["input"]
