@@ -192,7 +192,7 @@ class NegSamplingModel(AttalosModel):
         predictions = predict_fetches[0]
         if cross_eval and self.test_w is None:
             raise Exception("test_w is not set. Did you call prep_predict?")
-        predictions = np.dot(predictions, self.w.T)
+        predictions = np.dot(predictions, self.test_w.T)
         return predictions
 
     def get_training_loss(self, fit_fetches):
