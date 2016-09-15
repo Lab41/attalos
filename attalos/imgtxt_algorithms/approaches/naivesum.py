@@ -13,7 +13,8 @@ class NaiveSumModel(AttalosModel):
     """
     This model performs linear regression via NN using the naive sum of word vectors as targets.
     """
-    def _construct_model_info(self, input_size, output_size, learning_rate):
+    def _construct_model_info(self, input_size, output_size, learning_rate,
+                              hidden_units=[200,200]):
         logger.info("Input size: %s" % input_size)
         logger.info("Output size: %s" % output_size)
         
@@ -22,11 +23,17 @@ class NaiveSumModel(AttalosModel):
         model_info["y_truth"] = tf.placeholder(shape=(None, output_size), dtype=tf.float32)
         
         #hidden_layer = tf.contrib.layers.relu(model_info["input"], 1124)
-        hidden_layer1 = tf.contrib.layers.relu(model_info["input"], 1686)
-        hidden_layer2 = tf.contrib.layers.relu(hidden_layer1, 1124)
-        hidden_layer3 = tf.contrib.layers.relu(hidden_layer2, 562)
+        #hidden_layer1 = tf.contrib.layers.relu(model_info["input"], 1686)
+        #hidden_layer2 = tf.contrib.layers.relu(hidden_layer1, 1124)
+        #hidden_layer3 = tf.contrib.layers.relu(hidden_layer2, 562)
+
+        layers = []
+        layer = model_info["input"]
+        for i, hidden_size in enumerate(hidden_units[:-1]):
+            layer = tf.contrib.layers.relu(layer, hidden_size)
+            layers.append(layer)
         
-        model_info["predictions"] = tf.contrib.layers.fully_connected(hidden_layer3,
+        model_info["predictions"] = tf.contrib.layers.fully_connected(layer,
                                                                       output_size,
                                                                       activation_fn=None)
         model_info["loss"] = tf.reduce_sum(tf.square(model_info["predictions"] - model_info["y_truth"]))
@@ -101,61 +108,3 @@ class NaiveSumModel(AttalosModel):
     def get_training_loss(self, fit_fetches):
         _, loss = fit_fetches
         return loss
-
-    """
-
-    # is a generator
-    def iter_batches(self, dataset, batch_size):
-        # TODO batch_size = -1 should yield the entire dataset
-        num_batches = int(dataset.num_images / batch_size)
-        for batch in xrange(num_batches):
-            img_feats_list, text_feats_list = dataset.get_next_batch(batch_size)
-
-            new_img_feats = np.array(img_feats_list)
-            # normalize img_feats
-            #new_img_feats = (new_img_feats.T / np.linalg.norm(new_img_feats, axis=1)).T
-
-            new_text_feats = [self.one_hot.get_multiple(text_feats) for text_feats in text_feats_list]
-            new_text_feats = np.array(new_text_feats)
-            new_text_feats = self.wv_transformer.transform(new_text_feats)
-            # normalize text feats
-            # new_text_feats = (new_text_feats.T / np.linalg.norm(new_text_feats, axis=1)).T
-
-            yield new_img_feats, new_text_feats
-    
-    def get_eval_data(self, dataset):
-        x = []
-        y = []
-        for idx in dataset:
-            image_feats, text_feats = dataset.get_index(idx)
-            text_feats = self.one_hot.get_multiple(text_feats)
-            x.append(image_feats)
-            y.append(text_feats)
-        return np.asarray(x), np.asarray(y)
-        
-    def fit(self, sess, x, y, **kwargs):
-        _, loss = sess.run([self.model_info["optimizer"], self.model_info["loss"]],
-                           feed_dict={
-                               self.model_info["input"]: x,
-                               self.model_info["y_truth"]: y
-                           })
-        return loss
-        
-    def predict(self, sess, x, y=None):
-        fetches = [self.model_info["predictions"]]
-        feed_dict = {self.model_info["input"]: x}
-        #if y is not None:
-        #    logger.info("Ignoring y. Cannot evaluate test loss with naivesum model.")
-        #    fetches.append(self.model_info["loss"])
-        #    feed_dict[self.model_info["y_truth"]] = y
-        predictions = sess.run(fetches, feed_dict=feed_dict)
-        #if y is not None:
-        #    predictions = fetches[0]
-        #    loss = fetches[1]
-        #else: 
-        #    predictions = fetches
-        predictions = predictions[0] # predictions is a list
-        predictions = NaiveW2V.to_multihot(self.wv_model, self.one_hot, predictions, k=5)    
-        return predictions
-
-    """
