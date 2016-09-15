@@ -90,14 +90,22 @@ class NegSamplingModel(AttalosModel):
         self.test_w = None
         super(NegSamplingModel, self).__init__()
 
-    def _get_ids(self, pBatch, numSamps=[5,10]):
+    def _get_ids(self, pBatch, distribution=None, numSamps=[5,10]):
         nBatch = 1.0 - pBatch
         vpia = []; vnia = [];
         for i,unisamp in enumerate(pBatch):
-            vpi = np.random.choice( range(len(unisamp)) , size=numSamps[0],  p=1.0*unisamp/sum(unisamp))
+            if distribution is None:
+                p=1.0*unisamp/sum(unisamp)
+            else:
+                p = distribution
+            vpi = np.random.choice( range(len(unisamp)) , size=numSamps[0],  p=p)
             vpia += [vpi]
         for i,unisamp in enumerate(nBatch):
-            vni = np.random.choice( range(len(unisamp)) , size=numSamps[1], p=1.0*unisamp/sum(unisamp))
+            if distribution is None:
+                p = 1.0 * unisamp / sum(unisamp)
+            else:
+                p = distribution
+            vni = np.random.choice( range(len(unisamp)) , size=numSamps[1], p=p)
             vnia += [vni]
         vpia = np.array(vpia)
         vnia = np.array(vnia)
@@ -109,7 +117,7 @@ class NegSamplingModel(AttalosModel):
         img_feats = np.array(img_feats_list)
         text_feats = [self.one_hot.get_multiple(text_feats) for text_feats in text_feats_list]
         text_feats = np.array(text_feats)
-        text_feats = (text_feats.T / np.linalg.norm(text_feats, axis=1)).T
+        #text_feats = (text_feats.T / np.linalg.norm(text_feats, axis=1)).T
 
         pos_ids, neg_ids = self._get_ids(text_feats)
         self.pos_ids = pos_ids
