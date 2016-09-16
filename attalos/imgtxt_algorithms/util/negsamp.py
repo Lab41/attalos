@@ -2,15 +2,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import defaultdict, Iterable
 import numpy as np
-
 
 class NegativeSampler:
 
     def __init__(self, word_count):
         """Initialize NegativeSampler with the word count of the corpus.
-
-
         Args:
             word_count (list): A list of numbers indicating the number of times
                 a word appears in the corpus. Each location in the list
@@ -19,7 +17,21 @@ class NegativeSampler:
         # Set the probability distribution of labels
         self.labelpdf = word_count / word_count.sum()
         self.vocabsize = len(self.labelpdf)
-
+    
+    @staticmethod
+    def get_wordcount_from_datasets(datasets, one_hot):
+        word_counts = np.zeros(one_hot.vocab_size)
+        dataset_tags = defaultdict(int)
+        if isinstance(datasets, Iterable):
+            iterable_datasets = datasets
+        else:
+            iterable_datasets = [datasets] 
+        
+        for dataset in iterable_datasets:
+            for tags in dataset.text_feats.values():
+                word_counts += one_hot.get_multiple(tags) 
+        return word_counts
+    
     def getpdf(self):
         return self.labelpdf
 
@@ -33,25 +45,28 @@ class NegativeSampler:
         # Create new probability vector excluding positive samples
         nlabelpdf = self.labelpdf * nvector
         nlabelpdf /= nlabelpdf.sum()
-
+        
         # Negatively sample, based on probability vector
         return np.random.choice(self.vocabsize, size=num2samp, p=nlabelpdf)
-
-    def negsampv(self, vector, num2samp):
+    
+    def negsamp_ind(self, inds, num2samp):
+        nlabelpdf = np.copy(self.labelpdf)
+        nlabelpdf[inds] = 0
+        nlabelpdf /= nlabelpdf.sum()
+        return np.random.choice(self.vocabsize, size=num2samp, p=nlabelpdf)
+    
+    def negsampv(self, matrix, num2samp):
         """ Vectorized negative sampler, returning multiple negatives samples
         as a multi-hot vectors after taking an input 0/1 truth matrix. As
         opposed to 'negsamp()', this function is designed for batch processing.
-
         Defined as sampling vocabulary with known probability (provided at
         initialization), discarding any item that appears in test vector as a 1
-
         Args:
             vector: multi-hot input vector/matrix: N x d
             num2samp: number of negative samples per batch
-
         """
         # Inverse of vector (i.e., all negative samples), saved as float
-        nvector = (1-vector).astype('float32')
+        nvector = (1-matrix).astype('float32')
 
         # Create new probability vector excluding positive samples
         nlabelpdf = self.labelpdf * nvector
@@ -64,7 +79,7 @@ class NegativeSampler:
             nvector[i, np.random.choice(self.vocabsize, size=num2samp, p=nlabelpdf[i])] = 1
 
         return nvector
-
+    
     def binxentropy(self, y, yh):
         # Defined as:
         # C = 1/N sum_i yi sig(yhi) + (1 - yi) sig( 1-yhi )
