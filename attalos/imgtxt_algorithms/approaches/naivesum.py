@@ -5,6 +5,7 @@ from attalos.util.transformers.newnaivew2v import NaiveW2V
 import attalos.util.log.log as l
 from attalos.imgtxt_algorithms.approaches.base import AttalosModel
 from attalos.util.transformers.onehot import OneHot
+from attalos.imgtxt_algorithms.correlation.correlation import construct_W
 
 # Setup global objects
 logger = l.getLogger(__name__)
@@ -83,6 +84,8 @@ class NaiveSumModel(AttalosModel):
             self.test_one_hot = self.one_hot
             #self.test_wv_transformer = self.test_wv_transformer
 
+        self.test_w = construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
+
         for idx in dataset:
             image_feats, text_feats = dataset.get_index(idx)
             text_feats = self.test_one_hot.get_multiple(text_feats)
@@ -102,7 +105,7 @@ class NaiveSumModel(AttalosModel):
         if self.test_one_hot is None:
             raise Exception("test_one_hot is not set. Did you call prep_predict to initialize it?")
         predictions = predict_fetches[0]
-        predictions = NaiveW2V.to_multihot(self.wv_model, self.test_one_hot, predictions, k=5)
+        predictions = np.dot(predictions, construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
         return predictions
 
     def get_training_loss(self, fit_fetches):
