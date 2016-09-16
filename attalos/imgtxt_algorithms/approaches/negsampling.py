@@ -5,6 +5,7 @@ from scipy.special import expit as sigmoid
 from attalos.imgtxt_algorithms.approaches.base import AttalosModel
 from attalos.util.transformers.onehot import OneHot
 from attalos.imgtxt_algorithms.correlation.correlation import construct_W
+from attalos.imgtxt_algorithms.util.negsamp import NegativeSampler
 
 import attalos.util.log.log as l
 logger = l.getLogger(__name__)
@@ -71,6 +72,8 @@ class NegSamplingModel(AttalosModel):
     def __init__(self, wv_model, datasets, **kwargs):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
+        word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
+        self.negsampler = NegativeSampler(word_counts)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
 
@@ -78,10 +81,10 @@ class NegSamplingModel(AttalosModel):
         self.optim_words = kwargs.get("optim_words", True)
         self.hidden_units = kwargs.get("hidden_units", "200,200")
         self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
-
         self.model_info = self._construct_model_info(
             input_size = train_dataset.img_feat_size,
             output_size = self.one_hot.vocab_size,
+            hidden_units=self.hidden_units,
             learning_rate = self.learning_rate,
             optim_words = self.optim_words,
             wv_arr = self.w
@@ -89,37 +92,38 @@ class NegSamplingModel(AttalosModel):
         self.test_one_hot = None
         self.test_w = None
         super(NegSamplingModel, self).__init__()
-
-    def _get_ids(self, pBatch, distribution=None, numSamps=[5,10]):
-        nBatch = 1.0 - pBatch
-        vpia = []; vnia = [];
-        for i,unisamp in enumerate(pBatch):
-            if distribution is None:
-                p=1.0*unisamp/sum(unisamp)
-            else:
-                p = distribution
-            vpi = np.random.choice( range(len(unisamp)) , size=numSamps[0],  p=p)
-            vpia += [vpi]
-        for i,unisamp in enumerate(nBatch):
-            if distribution is None:
-                p = 1.0 * unisamp / sum(unisamp)
-            else:
-                p = distribution
-            vni = np.random.choice( range(len(unisamp)) , size=numSamps[1], p=p)
-            vnia += [vni]
-        vpia = np.array(vpia)
-        vnia = np.array(vnia)
-        return vpia, vnia
+    
+    def _get_ids(self, tag_ids, numSamps=[5, 10], uniform_sampling=False):
+        """
+        Takes a batch worth of text tags and returns positive/negative ids
+        """
+        pos_word_ids = np.ones((len(tag_ids), numSamps[0]))*-1
+        for ind, tags in enumerate(tag_ids):
+            if len(tags) > 0:
+                # If there are any valid tags choose 1
+                pos_word_ids[ind] = np.random.choice(tags, size=numSamps[0])
+        
+        neg_word_ids = None#np.ones((len(text_tags), numSamps[1]))*-1
+        if uniform_sampling:
+            neg_word_ids = np.random.randint(0, 
+                                             self.one_hot.vocab_size, 
+                                             size=(len(tag_ids), numSamps[1]))
+        else:
+            neg_word_ids = np.zeros((len(tag_ids), numSamps[1]))
+            for ind, tag_inds in enumerate(tag_ids):
+                neg_word_ids[ind] = self.negsampler.negsamp_ind(tag_inds, numSamps[1])
+        
+        return pos_word_ids, neg_word_ids
 
     def prep_fit(self, data):
         img_feats_list, text_feats_list = data
 
         img_feats = np.array(img_feats_list)
-        text_feats = [self.one_hot.get_multiple(text_feats) for text_feats in text_feats_list]
-        text_feats = np.array(text_feats)
-        #text_feats = (text_feats.T / np.linalg.norm(text_feats, axis=1)).T
+        text_feat_ids = []
+        for tags in text_feats_list:
+            text_feat_ids.append([self.one_hot.get_index(tag) for tag in tags if tag in self.one_hot])
 
-        pos_ids, neg_ids = self._get_ids(text_feats)
+        pos_ids, neg_ids = self._get_ids(text_feat_ids)
         self.pos_ids = pos_ids
         self.neg_ids = neg_ids
 
