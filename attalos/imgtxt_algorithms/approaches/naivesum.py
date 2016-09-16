@@ -105,7 +105,7 @@ class NaiveSumModel(AttalosModel):
         if self.test_one_hot is None:
             raise Exception("test_one_hot is not set. Did you call prep_predict to initialize it?")
         predictions = predict_fetches[0]
-        predictions = np.dot(predictions, construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
+        predictions = np.dot(predictions, construct_W(self.wv_model, self.test_one_hot.get_key_ordering()))
         return predictions
 
     def get_training_loss(self, fit_fetches):
