@@ -69,7 +69,13 @@ class OneHot(TextTransformer):
             if tag in self.data_mapping:
                 multihot_feats += self.__getitem__(tag)
         return multihot_feats
-
+    
+    def get_index(self, item):
+        return self.data_mapping[item]
+    
+    def __contains__(self, item):
+        return item in self.data_mapping
+    
     def __getitem__(self, item):
         if item not in self.data_mapping:
             return None
