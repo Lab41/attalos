@@ -21,7 +21,6 @@ class NegativeSampler:
     @staticmethod
     def get_wordcount_from_datasets(datasets, one_hot):
         word_counts = np.zeros(one_hot.vocab_size)
-        dataset_tags = defaultdict(int)
         if isinstance(datasets, Iterable):
             iterable_datasets = datasets
         else:
@@ -49,9 +48,9 @@ class NegativeSampler:
         # Negatively sample, based on probability vector
         return np.random.choice(self.vocabsize, size=num2samp, p=nlabelpdf)
     
-    def negsamp_ind(self, inds, num2samp):
+    def negsamp_ind(self, ignored_inds, num2samp):
         nlabelpdf = np.copy(self.labelpdf)
-        nlabelpdf[inds] = 0
+        nlabelpdf[ignored_inds] = 0
         nlabelpdf /= nlabelpdf.sum()
         return np.random.choice(self.vocabsize, size=num2samp, p=nlabelpdf)
     
