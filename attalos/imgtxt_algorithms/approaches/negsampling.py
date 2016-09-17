@@ -72,6 +72,7 @@ class NegSamplingModel(AttalosModel):
     def __init__(self, wv_model, datasets, **kwargs):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
+        # Get a numpy array of length vocab which has a count of how often each word appears in datasets
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
         self.negsampler = NegativeSampler(word_counts)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
@@ -97,21 +98,25 @@ class NegSamplingModel(AttalosModel):
         """
         Takes a batch worth of text tags and returns positive/negative ids
         """
-        pos_word_ids = np.ones((len(tag_ids), numSamps[0]))*-1
+        num_images_in_batch = len(tag_ids)
+        num_positive_samples = numSamps[0]
+        num_negative_samples = numSamps[1]
+        pos_word_ids = np.ones((num_images_in_batch, num_positive_samples), dtype=np.int32)*-1
         for ind, tags in enumerate(tag_ids):
             if len(tags) > 0:
                 # If there are any valid tags choose 1
-                pos_word_ids[ind] = np.random.choice(tags, size=numSamps[0])
+                num_tags_for_image = len(tags)
+                pos_word_ids[ind] = np.random.choice(tags, size=num_positive_samples)
         
-        neg_word_ids = None#np.ones((len(text_tags), numSamps[1]))*-1
+        neg_word_ids = None
         if uniform_sampling:
             neg_word_ids = np.random.randint(0, 
                                              self.one_hot.vocab_size, 
-                                             size=(len(tag_ids), numSamps[1]))
+                                             size=(len(tag_ids), num_negative_samples))
         else:
-            neg_word_ids = np.zeros((len(tag_ids), numSamps[1]))
+            neg_word_ids = np.ones((num_images_in_batch, num_negative_samples), dtype=np.int32)*-1
             for ind, tag_inds in enumerate(tag_ids):
-                neg_word_ids[ind] = self.negsampler.negsamp_ind(tag_inds, numSamps[1])
+                neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], num_negative_samples)
         
         return pos_word_ids, neg_word_ids
 
