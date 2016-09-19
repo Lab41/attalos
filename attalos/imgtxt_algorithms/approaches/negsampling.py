@@ -72,7 +72,6 @@ class NegSamplingModel(AttalosModel):
     def __init__(self, wv_model, datasets, **kwargs):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
-        # Get a numpy array of length vocab which has a count of how often each word appears in datasets
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
         self.negsampler = NegativeSampler(word_counts)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
@@ -98,32 +97,32 @@ class NegSamplingModel(AttalosModel):
         """
         Takes a batch worth of text tags and returns positive/negative ids
         """
-        num_images_in_batch = len(tag_ids)
-        num_positive_samples = numSamps[0]
-        num_negative_samples = numSamps[1]
-        pos_word_ids = np.ones((num_images_in_batch, num_positive_samples), dtype=np.int32)*-1
+        pos_word_ids = np.ones((len(tag_ids), numSamps[0]), dtype=np.int32)
+        pos_word_ids.fill(-1)
         for ind, tags in enumerate(tag_ids):
             if len(tags) > 0:
-                # If there are any valid tags choose 1
-                num_tags_for_image = len(tags)
-                pos_word_ids[ind] = np.random.choice(tags, size=num_positive_samples)
+                pos_word_ids[ind] = np.random.choice(tags, size=numSamps[0])
         
         neg_word_ids = None
         if uniform_sampling:
             neg_word_ids = np.random.randint(0, 
                                              self.one_hot.vocab_size, 
-                                             size=(len(tag_ids), num_negative_samples))
+                                             size=(len(tag_ids), numSamps[1]))
         else:
-            neg_word_ids = np.ones((num_images_in_batch, num_negative_samples), dtype=np.int32)*-1
-            for ind, tag_inds in enumerate(tag_ids):
-                neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], num_negative_samples)
+            neg_word_ids = np.ones((len(tag_ids), numSamps[1]), dtype=np.int32)
+            neg_word_ids.fill(-1)
+            for ind in range(pos_word_ids.shape[0]):
+                # NOTE: This function call should definitely be pos_word_ids[ind]
+                #          but that results in significantly worse performance
+                #          I wish I understood why.
+                #          I think this means we won't sample any tags that appear in the batch
+                neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])
         
         return pos_word_ids, neg_word_ids
 
     def prep_fit(self, data):
-        img_feats_list, text_feats_list = data
+        img_feats, text_feats_list = data
 
-        img_feats = np.array(img_feats_list)
         text_feat_ids = []
         for tags in text_feats_list:
             text_feat_ids.append([self.one_hot.get_index(tag) for tag in tags if tag in self.one_hot])
