@@ -32,7 +32,7 @@ class OneHot(TextTransformer):
 
     def create_data_mapping(self, *args, **kwargs):
         datasets = args[0]
-        valid_vocab = args[1]
+        valid_vocab = set(args[1])
         dataset_tags = set()
         if isinstance(datasets, collections.Iterable):
             iterable_datasets = datasets
