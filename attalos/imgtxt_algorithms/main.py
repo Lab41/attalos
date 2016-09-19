@@ -15,6 +15,8 @@ from attalos.imgtxt_algorithms.approaches.multihot import MultihotModel
 from attalos.imgtxt_algorithms.approaches.naivesum import NaiveSumModel
 from attalos.imgtxt_algorithms.approaches.wdv import WDVModel
 from attalos.imgtxt_algorithms.approaches.negsampling import NegSamplingModel
+from attalos.imgtxt_algorithms.approaches.fast0tag import FastZeroTagModel
+
 
 logger = l.getLogger(__name__)
 
@@ -27,6 +29,7 @@ class ModelTypes(Enum):
     naivesum = NaiveSumModel
     wdv = WDVModel
     negsampling = NegSamplingModel
+    fast0tag = FastZeroTagModel
 
 def train_batch(sess, model, batch_data):
     """
@@ -104,7 +107,7 @@ def load_wv_model(word_vector_file, word_vector_type):
         from glove import Glove
         glove_model = Glove.load_stanford(word_vector_file)
         wv_model = GloveWrapper(glove_model)
-    else: #args.word_vector_type == WordVectorTypes.w2v.name:
+    else: 
         import word2vec
         w2v_model = word2vec.load(word_vector_file)
         wv_model = W2VWrapper(w2v_model)
@@ -180,7 +183,7 @@ def main():
     parser.add_argument("--model_type",
                         type=str,
                         default="multihot",
-                        choices=['multihot', 'naivesum', 'wdv', 'negsampling'],
+                        choices=['multihot', 'naivesum', 'wdv', 'negsampling', 'fast0tag'],
                         help="Loss function to use for training")
     parser.add_argument("--in_memory",
                         action='store_true',
