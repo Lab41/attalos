@@ -112,11 +112,14 @@ class NegSamplingModel(AttalosModel):
             neg_word_ids = np.ones((len(tag_ids), numSamps[1]), dtype=np.int32)
             neg_word_ids.fill(-1)
             for ind in range(pos_word_ids.shape[0]):
-                # NOTE: This function call should definitely be pos_word_ids[ind]
-                #          but that results in significantly worse performance
-                #          I wish I understood why.
-                #          I think this means we won't sample any tags that appear in the batch
-                neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])
+                if self.optim_words:
+                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], numSamps[1])
+                else:
+                    # NOTE: This function call should definitely be pos_word_ids[ind]
+                    #          but that results in significantly worse performance
+                    #          I wish I understood why.
+                    #          I think this means we won't sample any tags that appear in the batch
+                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])
         
         return pos_word_ids, neg_word_ids
 
