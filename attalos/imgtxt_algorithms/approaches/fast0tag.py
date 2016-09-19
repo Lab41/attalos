@@ -171,11 +171,5 @@ class FastZeroTagModel(AttalosModel):
             raise Exception("test_w is not set. Did you call prep_predict?")
         predictions = np.dot(predictions, self.test_w.T)
         return predictions
-    
-    def save(self, sess, model_output_path):
-        self.model_info['saver'].save(sess, model_output_path)
-
-    def load(self, sess, model_input_path):
-        self.model_info['saver'].restore(sess, model_input_path)
     def get_training_loss(self, fit_fetches):
         return fit_fetches[1]
