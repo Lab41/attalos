@@ -15,6 +15,8 @@ from attalos.imgtxt_algorithms.approaches.multihot import MultihotModel
 from attalos.imgtxt_algorithms.approaches.naivesum import NaiveSumModel
 from attalos.imgtxt_algorithms.approaches.wdv import WDVModel
 from attalos.imgtxt_algorithms.approaches.negsampling import NegSamplingModel
+from attalos.imgtxt_algorithms.approaches.fast0tag import FastZeroTagModel
+
 
 logger = l.getLogger(__name__)
 
@@ -26,7 +28,8 @@ class ModelTypes(Enum):
     multihot = MultihotModel
     naivesum = NaiveSumModel
     wdv = WDVModel
-    negsamp = NegSamplingModel
+    negsampling = NegSamplingModel
+    fast0tag = FastZeroTagModel
 
 def train_batch(sess, model, batch_data):
     """
@@ -95,14 +98,16 @@ def evaluate(sess, model, fetches, feed_dict, truth):
     predictions = model.predict(sess, fetches, feed_dict)
     predictions = model.post_predict(predictions)
     evaluator = Evaluation(truth, predictions, k=5)
-    logger.debug("Evaluation (precision, recall, f1): %s" % evaluator.evaluate())
+    performance = evaluator.evaluate()
+    logger.debug("Evaluation (precision, recall, f1): %s" % performance)
+    return performance
 
 def load_wv_model(word_vector_file, word_vector_type):
     if word_vector_type == WordVectorTypes.glove.name:
         from glove import Glove
         glove_model = Glove.load_stanford(word_vector_file)
         wv_model = GloveWrapper(glove_model)
-    else: #args.word_vector_type == WordVectorTypes.w2v.name:
+    else: 
         import word2vec
         w2v_model = word2vec.load(word_vector_file)
         wv_model = W2VWrapper(w2v_model)
@@ -115,7 +120,7 @@ def convert_args_and_call_model(args):
 
     logger.info("Reading word vectors from file.")
     wv_model = load_wv_model(args.word_vector_file, args.word_vector_type)
-
+    performance = []
     with tf.Graph().as_default():
         model_cls = ModelTypes[args.model_type].value
         logger.info("Selecting model class: %s" % model_cls.__name__)
@@ -139,7 +144,8 @@ def convert_args_and_call_model(args):
                 model.save(sess, args.model_output_path)
 
             logger.info("Starting evaluation phase.")
-            evaluate(sess, model, fetches, feed_dict, truth)
+            performance.append(evaluate(sess, model, fetches, feed_dict, truth))        
+    return performance
 
 def main():
     import argparse
@@ -174,14 +180,10 @@ def main():
                         type=int,
                         default=128,
                         help="Batch size to use for training")
-    #parser.add_argument("--network",
-    #                    type=str,
-    #                    default="200,200",
-    #                    help="Define a neural network as comma separated layer sizes")
     parser.add_argument("--model_type",
                         type=str,
                         default="multihot",
-                        choices=['multihot', 'naivesum', 'wdv', 'negsamp'],
+                        choices=['multihot', 'naivesum', 'wdv', 'negsampling', 'fast0tag'],
                         help="Loss function to use for training")
     parser.add_argument("--in_memory",
                         action='store_true',
@@ -244,6 +246,7 @@ def main():
         ex.run(config_updates=args.__dict__)
     except ImportError:
         # We don't have sacred, just run the script
+        logger.warn('Not using Sacred. Your results will not be saved')
         convert_args_and_call_model(args)
 
 
