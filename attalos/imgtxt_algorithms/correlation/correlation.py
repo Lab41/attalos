@@ -84,6 +84,10 @@ def scale2(arr):
     return (arr - broadcast_mean) / broadcast_std
 
 
+def scale3(arr, order=2):
+    return (arr.T / np.linalg.norm(arr, order, axis=1)).T
+
+
 def nonlinearity(arr, coef=-1, offset=1, power=2, alpha=0.005):
     """
     This function applies a nonlinearity to an numpy ndarray.

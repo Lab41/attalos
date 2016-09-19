@@ -73,7 +73,7 @@ class Evaluation(object):
             self.m_precision = metrics.precision_score(
                 self.ground_truth, self.predictions, 
                 average='macro')
-        except UndefinedMetricWarning:
+        except metrics.base.UndefinedMetricWarning:
             pass
         return self.m_precision
 
@@ -85,7 +85,7 @@ class Evaluation(object):
             self.m_recall = metrics.recall_score(
                 self.ground_truth, self.predictions, 
                 average='macro')
-        except UndefinedMetricWarning:
+        except metrics.base.UndefinedMetricWarning:
             pass
         return self.m_recall
 

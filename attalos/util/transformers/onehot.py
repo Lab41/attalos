@@ -3,8 +3,11 @@ from __future__ import division
 from __future__ import print_function
 
 import collections
+
 import numpy as np
-from attalos.dataset.transformers.texttransformer import TextTransformer
+
+from attalos.util.transformers.texttransformer import TextTransformer
+
 
 class OneHot(TextTransformer):
     """
@@ -14,7 +17,7 @@ class OneHot(TextTransformer):
         """
         Initialize OneHot encoding
         Args:
-            dataset (attalos.dataset.dataset): A  dataset iterator (or list of iterators)
+            datasets (attalos.dataset.dataset): A dataset iterator (or list of iterators)
             dictionary_file: A saved dictionary file
 
         Returns:
@@ -40,12 +43,17 @@ class OneHot(TextTransformer):
             for tags in dataset.text_feats.values():
                 dataset_tags.update(tags)
         
-        if valid_vocab:
+        if valid_vocab is not None:
             dataset_tags = filter(lambda x: x in valid_vocab, dataset_tags)
             
         self.vocab_size = len(dataset_tags)
+        self.ordered_keys = []
         for i, key in enumerate(dataset_tags):
             self.data_mapping[key] = i
+            self.ordered_keys.append(key)
+            
+    def get_key_ordering(self):
+        return self.ordered_keys
 
     def get_multiple(self, tags):
         """
@@ -61,7 +69,13 @@ class OneHot(TextTransformer):
             if tag in self.data_mapping:
                 multihot_feats += self.__getitem__(tag)
         return multihot_feats
-
+    
+    def get_index(self, item):
+        return self.data_mapping[item]
+    
+    def __contains__(self, item):
+        return item in self.data_mapping
+    
     def __getitem__(self, item):
         if item not in self.data_mapping:
             return None

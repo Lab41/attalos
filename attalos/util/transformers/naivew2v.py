@@ -1,9 +1,7 @@
-from attalos.dataset.transformers.wvtransformer import WVTransformer
 import numpy as np
 
 import attalos.util.log.log as l
-import logging
-
+from attalos.util.transformers.wvtransformer import WVTransformer
 
 logger = l.getLogger(__name__)
 
