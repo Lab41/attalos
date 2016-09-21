@@ -227,6 +227,11 @@ def main():
                         action="store_true",
                         default=False,
                         help="Sample, ignoring from positive batch instead of examples. This should be taken out in future iters.")
+    parser.add_argument("--joint_factor",
+                        type=float,
+                        default=1.0,
+                        help="Multiplier for learning rate in updating joint optimization")
+
 
     args = parser.parse_args()
 
