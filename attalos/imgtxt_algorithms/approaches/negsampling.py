@@ -115,15 +115,13 @@ class NegSamplingModel(AttalosModel):
             neg_word_ids.fill(-1)
             for ind in range(pos_word_ids.shape[0]):
                 if self.ignore_posbatch:
-                    # neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], numSamps[1])
+                    # NOTE: This function call should definitely be pos_word_ids[ind]                                               
+                    #          but that results in significantly worse performance                                                  
+                    #          I wish I understood why.                                                                             
+                    #          I think this means we won't sample any tags that appear in the batch    
                     neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])         
                 else:
-                    # NOTE: This function call should definitely be pos_word_ids[ind]
-                    #          but that results in significantly worse performance
-                    #          I wish I understood why.
-                    #          I think this means we won't sample any tags that appear in the batch
-                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])
-                    # neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], numSamps[1])
+                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], numSamps[1])
         
         return pos_word_ids, neg_word_ids
 
