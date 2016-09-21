@@ -79,6 +79,8 @@ class NegSamplingModel(AttalosModel):
 
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
+        self.ignore_posbatch = kwargs.get("ignore_posbatch",False)
+        self.joint_factor = kwargs.get("joint_factor",1.0)
         self.hidden_units = kwargs.get("hidden_units", "200,200")
         self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
         self.model_info = self._construct_model_info(
@@ -112,14 +114,14 @@ class NegSamplingModel(AttalosModel):
             neg_word_ids = np.ones((len(tag_ids), numSamps[1]), dtype=np.int32)
             neg_word_ids.fill(-1)
             for ind in range(pos_word_ids.shape[0]):
-                if self.optim_words:
-                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], numSamps[1])
+                if self.ignore_posbatch:
+                    # NOTE: This function call should definitely be pos_word_ids[ind]                                               
+                    #          but that results in significantly worse performance                                                  
+                    #          I wish I understood why.                                                                             
+                    #          I think this means we won't sample any tags that appear in the batch    
+                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])         
                 else:
-                    # NOTE: This function call should definitely be pos_word_ids[ind]
-                    #          but that results in significantly worse performance
-                    #          I wish I understood why.
-                    #          I think this means we won't sample any tags that appear in the batch
-                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])
+                    neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids[ind], numSamps[1])
         
         return pos_word_ids, neg_word_ids
 
@@ -162,8 +164,8 @@ class NegSamplingModel(AttalosModel):
 
     def _updatewords(self, vpindex, vnindex, vin):
         for i, (vpi, vni) in enumerate(zip(vpindex, vnindex)):
-            self.w[vpi] += self.learning_rate * np.outer(1 - sigmoid(self.w[vpi].dot(vin[i])), vin[i])
-            self.w[vni] -= self.learning_rate * np.outer(sigmoid(self.w[vni].dot(vin[i])), vin[i])
+            self.w[vpi] += self.joint_factor*self.learning_rate * np.outer(1 - sigmoid(self.w[vpi].dot(vin[i])), vin[i])
+            self.w[vni] -= self.joint_factor*self.learning_rate * np.outer(sigmoid(self.w[vni].dot(vin[i])), vin[i])
 
     def fit(self, sess, fetches, feed_dict):
         fit_fetches = super(NegSamplingModel, self).fit(sess, fetches, feed_dict)
