@@ -2,7 +2,8 @@
 
 PYTHONPATH=$PYTHONPATH:'../../../'
 
-wget https://raw.githubusercontent.com/Lab41/attalos/master/attalos/imgtxt_algorithms/densecap/info/densecap_splits.json
+# wget https://raw.githubusercontent.com/Lab41/attalos/master/attalos/imgtxt_algorithms/densecap/info/densecap_splits.json
+ln -s ../../../attalos/imgtxt_algorithms/densecap/info/densecap_splits.json densecap_splits.json
 python visgenome2attalos.py
 
 mkdir notfounds

@@ -3,25 +3,26 @@ sys.path.append('/home/kni/local-kni/attalos')
 from attalos.dataset.dataset import Dataset
 # from attalos.dataset.transformers.onehot import OneHot
 import numpy as np
+import json
 
 
 datadir='/data/fs4/teams/attalos/features/'
 imdata=datadir+'image/visualgenome_train_20160816_inception.hdf5'
 txdata=datadir+'text/visualgenome_train_20160816_text.json.gz'
 dirTr = '/data/fs4/datasets/vg_unzipped/'
+splits = json.load(open('densecap_splits.json'))                                                                                    
 
+## Using our dataset iterators, load in the text data
 alldata = Dataset(imdata,txdata)
-
 for key in alldata.text_feats:
     words = alldata.text_feats[key]
     words = [ word.split()[-1].lower() for word in words ]
     alldata.text_feats[key] = words
-
 del key,words,word
 
 
-# ## Create an unordered vocabulary with counts
-# - Full vocabulary is stored in `vocab`, with `counts`
+## Create an unordered vocabulary with counts
+#  Full vocabulary is stored in `vocab`, with `counts`
 def getvocab( text_feats ):
     
     vocab = dict()
@@ -86,7 +87,7 @@ def imid_to_array(image_ids):
         
     return ii2ai
 
-
+# Obtain the valid commericials
 def getvalid(image_ids, text_feats, dHash, id2array=None):
     '''
     Get the valid images. You will need:
@@ -155,10 +156,6 @@ def getsplits( ids, arrayidxs, validkeys ):
             idxlist+=[ai] 
             keylist+=[i]
     return idxlist,keylist
-
-import json
-splits = json.load(open('densecap_splits.json'))
-objdicts = json.load(open('/local_data/agude/VG-object-regions-dicts.json'))
 
 
 # Image indexes to arrays
