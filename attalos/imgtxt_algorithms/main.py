@@ -223,6 +223,10 @@ def main():
                         action="store_true",
                         default=False,
                         help="If using negsampling model_type, use to jointly optimize words")
+    parser.add_argument("--ignore_posbatch",
+                        action="store_true",
+                        default=False,
+                        help="Sample, ignoring from positive batch instead of examples. This should be taken out in future iters.")
 
     args = parser.parse_args()
 
