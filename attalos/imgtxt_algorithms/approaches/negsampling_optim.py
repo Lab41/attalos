@@ -10,33 +10,20 @@ from attalos.imgtxt_algorithms.util.negsamp import NegativeSampler
 import attalos.util.log.log as l
 logger = l.getLogger(__name__)
 
-class NegSamplingModel(AttalosModel):
+class NegSamplingOptimModel(AttalosModel):
     """
     This model performs negative sampling.
     """
 
     def _construct_model_info(self, input_size, output_size, learning_rate, wv_arr,
                               hidden_units=[200,200],
-                              optim_words=True,
                               use_batch_norm=True):
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
 
-        if optim_words:
-            model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
-            model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
-            logger.info("Optimization on GPU, word vectors are stored separately.")
-        else:
-            model_info["w2v"] = tf.Variable(wv_arr, dtype=tf.float32)
-            model_info["pos_ids"] = tf.placeholder(dtype=tf.int32)
-            model_info["neg_ids"] = tf.placeholder(dtype=tf.int32)
-            model_info["pos_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
-                                                                         model_info["pos_ids"]),
-                                                       perm=[1,0,2])
-            model_info["neg_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
-                                                                         model_info["neg_ids"]),
-                                                       perm=[1,0,2])
-            logger.info("Not optimizing word vectors.")
+        model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
+        model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
+        logger.info("Optimization on GPU, word vectors are stored separately.")
 
         # Construct fully connected layers
         layers = []
@@ -64,8 +51,6 @@ class NegSamplingModel(AttalosModel):
         model_info["loss"] = -(pos_loss + neg_loss)
 
         model_info["optimizer"] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(model_info["loss"])
-        #model_info["init_op"] = tf.initialize_all_variables()
-        #model_info["saver"] = tf.train.Saver()
 
         return model_info
 
@@ -78,7 +63,6 @@ class NegSamplingModel(AttalosModel):
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
 
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
-        self.optim_words = kwargs.get("optim_words", True)
         self.ignore_posbatch = kwargs.get("ignore_posbatch",False)
         self.joint_factor = kwargs.get("joint_factor",1.0)
         self.hidden_units = kwargs.get("hidden_units", "200,200")
@@ -88,12 +72,11 @@ class NegSamplingModel(AttalosModel):
             output_size = self.one_hot.vocab_size,
             hidden_units=self.hidden_units,
             learning_rate = self.learning_rate,
-            optim_words = self.optim_words,
             wv_arr = self.w
         )
         self.test_one_hot = None
         self.test_w = None
-        super(NegSamplingModel, self).__init__()
+        super(NegSamplingOptimModel, self).__init__()
     
     def _get_ids(self, tag_ids, numSamps=[5, 10], uniform_sampling=False):
         """
@@ -136,29 +119,21 @@ class NegSamplingModel(AttalosModel):
         self.pos_ids = pos_ids
         self.neg_ids = neg_ids
 
-        if not self.optim_words:
-            fetches = [self.model_info["optimizer"], self.model_info["loss"]]
-            feed_dict = {
-                self.model_info["input"]: img_feats,
-                self.model_info["pos_ids"]: pos_ids,
-                self.model_info["neg_ids"]: neg_ids
-            }
-        else:
-            pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
-            nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
-            for i, ids in enumerate(pos_ids):
-                pvecs[i] = self.w[ids]
-            for i, ids in enumerate(neg_ids):
-                nvecs[i] = self.w[ids]
-            pvecs = pvecs.transpose((1, 0, 2))
-            nvecs = nvecs.transpose((1, 0, 2))
+        pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
+        nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
+        for i, ids in enumerate(pos_ids):
+            pvecs[i] = self.w[ids]
+        for i, ids in enumerate(neg_ids):
+            nvecs[i] = self.w[ids]
+        pvecs = pvecs.transpose((1, 0, 2))
+        nvecs = nvecs.transpose((1, 0, 2))
 
-            fetches = [self.model_info["optimizer"], self.model_info["loss"], self.model_info["prediction"]]
-            feed_dict = {
-                self.model_info["input"]: img_feats,
-                self.model_info["pos_vecs"]: pvecs,
-                self.model_info["neg_vecs"]: nvecs
-            }
+        fetches = [self.model_info["optimizer"], self.model_info["loss"], self.model_info["prediction"]]
+        feed_dict = {
+            self.model_info["input"]: img_feats,
+            self.model_info["pos_vecs"]: pvecs,
+            self.model_info["neg_vecs"]: nvecs
+        }
 
         return fetches, feed_dict
 
@@ -169,11 +144,10 @@ class NegSamplingModel(AttalosModel):
 
     def fit(self, sess, fetches, feed_dict):
         fit_fetches = super(NegSamplingModel, self).fit(sess, fetches, feed_dict)
-        if self.optim_words:
-            if self.pos_ids is None or self.neg_ids is None:
-                raise Exception("pos_ids or neg_ids is not set; cannot update word vectors. Did you run prep_fit()?")
-            _, _, prediction = fit_fetches
-            self._updatewords(self.pos_ids, self.neg_ids, prediction)
+        if self.pos_ids is None or self.neg_ids is None:
+            raise Exception("pos_ids or neg_ids is not set; cannot update word vectors. Did you run prep_fit()?")
+        _, _, prediction = fit_fetches
+        self._updatewords(self.pos_ids, self.neg_ids, prediction)
         return fit_fetches
 
     def prep_predict(self, dataset, cross_eval=False):

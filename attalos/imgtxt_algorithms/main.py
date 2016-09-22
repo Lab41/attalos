@@ -14,7 +14,8 @@ from attalos.evaluation.evaluation import Evaluation
 from attalos.imgtxt_algorithms.approaches.multihot import MultihotModel
 from attalos.imgtxt_algorithms.approaches.naivesum import NaiveSumModel
 from attalos.imgtxt_algorithms.approaches.wdv import WDVModel
-from attalos.imgtxt_algorithms.approaches.negsampling import NegSamplingModel
+from attalos.imgtxt_algorithms.approaches.negsampling_fixed import NegSamplingFixedModel
+from attalos.imgtxt_algorithms.approaches.negsampling_optim import NegSamplingOptimModel
 from attalos.imgtxt_algorithms.approaches.fast0tag import FastZeroTagModel
 
 
@@ -28,7 +29,8 @@ class ModelTypes(Enum):
     multihot = MultihotModel
     naivesum = NaiveSumModel
     wdv = WDVModel
-    negsampling = NegSamplingModel
+    negsampling_fixed = NegSamplingFixedModel
+    negsampling_optim = NegSamplingOptimModel
     fast0tag = FastZeroTagModel
 
 def train_batch(sess, model, batch_data):
@@ -183,7 +185,12 @@ def main():
     parser.add_argument("--model_type",
                         type=str,
                         default="multihot",
-                        choices=['multihot', 'naivesum', 'wdv', 'negsampling', 'fast0tag'],
+                        choices=['multihot',
+                                 'naivesum',
+                                 'wdv',
+                                 'negsampling_fixed',
+                                 'negsampling_optim',
+                                 'fast0tag'],
                         help="Loss function to use for training")
     parser.add_argument("--in_memory",
                         action='store_true',
