@@ -201,7 +201,7 @@ def main():
     # new args
     parser.add_argument("--hidden_units",
                         type=str,
-                        default="200,200",
+                        default="200",
                         help="Define a neural network as comma separated layer sizes")
     parser.add_argument("--cross_eval",
                         action="store_true",
@@ -231,6 +231,10 @@ def main():
                         type=float,
                         default=1.0,
                         help="Multiplier for learning rate in updating joint optimization")
+    parser.add_argument("--use_batch_norm",
+                        action="store_true",
+                        default=False,
+                        help="Do we want to use batch normalization?")
 
 
     args = parser.parse_args()

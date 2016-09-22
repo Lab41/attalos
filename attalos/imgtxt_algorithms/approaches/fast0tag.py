@@ -6,6 +6,9 @@ from attalos.util.transformers.onehot import OneHot
 from attalos.imgtxt_algorithms.correlation.correlation import construct_W
 from attalos.imgtxt_algorithms.util.negsamp import NegativeSampler
 
+import attalos.util.log.log as l
+logger = l.getLogger(__name__)
+
 class FastZeroTagModel(AttalosModel):
     """
     Create a tensorflow graph that finds the principal direction of the target word embeddings 
@@ -17,12 +20,14 @@ class FastZeroTagModel(AttalosModel):
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
         self.negsampler = NegativeSampler(word_counts)
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
-        
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
         self.hidden_units = kwargs.get("hidden_units", "200,200")
-        self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
-        
+        self.use_batch_norm = kwargs.get("use_batch_norm",False)
+        if self.hidden_units=='0':                                                                                                  
+            self.hidden_units=[]
+        else:
+            self.hidden_units = [int(x) for x in self.hidden_units.split(',')]
         self.model_info = dict()
          # Placeholders for data
         self.model_info['input'] = tf.placeholder(shape=(None, datasets[0].img_feat_size), dtype=tf.float32)
@@ -38,19 +43,19 @@ class FastZeroTagModel(AttalosModel):
                                                 perm=[1,0,2])
 
         # Construct fully connected layers
+        layer = self.model_info['input']
         layers = []
-        for i, hidden_size in enumerate(self.hidden_units[:-1]):
-            if i == 0:
-                layer = tf.contrib.layers.relu(self.model_info['input'], hidden_size)
-            else:
-                layer = tf.contrib.layers.relu(layer, hidden_size)
+        for i, hidden_size in enumerate(self.hidden_units):
+            layer = tf.contrib.layers.relu(layer, hidden_size)
+            layers.append(layer)
+            if self.use_batch_norm:
+                layer = tf.contrib.layers.batch_norm(layer)
+                layers.append(layer)
+                logger.info("Using batch normalization")
 
-            layers.append(layer)
-            layer = tf.contrib.layers.batch_norm(layer)
-            layers.append(layer)
 
         # Output layer should always be linear
-        layer = tf.contrib.layers.linear(layer, self.hidden_units[-1])
+        layer = tf.contrib.layers.linear(layer, self.w.shape[1])
         layers.append(layer)
 
         self.model_info['layers'] = layers

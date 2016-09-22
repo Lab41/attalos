@@ -21,6 +21,7 @@ class NegSamplingModel(AttalosModel):
                               use_batch_norm=True):
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
+        # model_info['learning_rate'] = tf.placeholder(dtype=tf.float32)
 
         if optim_words:
             model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
@@ -41,7 +42,7 @@ class NegSamplingModel(AttalosModel):
         # Construct fully connected layers
         layers = []
         layer = model_info["input"]
-        for i, hidden_size in enumerate(hidden_units[:-1]):
+        for i, hidden_size in enumerate(hidden_units):
             layer = tf.contrib.layers.relu(layer, hidden_size)
             layers.append(layer)
             if use_batch_norm:
@@ -82,13 +83,18 @@ class NegSamplingModel(AttalosModel):
         self.ignore_posbatch = kwargs.get("ignore_posbatch",False)
         self.joint_factor = kwargs.get("joint_factor",1.0)
         self.hidden_units = kwargs.get("hidden_units", "200,200")
-        self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
+        if self.hidden_units=='0':
+            self.hidden_units=[]
+        else:
+            self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
+        use_batch_norm = kwargs.get('use_batch_norm',False)
         self.model_info = self._construct_model_info(
             input_size = train_dataset.img_feat_size,
             output_size = self.one_hot.vocab_size,
             hidden_units=self.hidden_units,
             learning_rate = self.learning_rate,
             optim_words = self.optim_words,
+            use_batch_norm = use_batch_norm,
             wv_arr = self.w
         )
         self.test_one_hot = None
@@ -115,9 +121,9 @@ class NegSamplingModel(AttalosModel):
             neg_word_ids.fill(-1)
             for ind in range(pos_word_ids.shape[0]):
                 if self.ignore_posbatch:
-                    # NOTE: This function call should definitely be pos_word_ids[ind]                                               
-                    #          but that results in significantly worse performance                                                  
-                    #          I wish I understood why.                                                                             
+                    # NOTE: This function call should definitely be pos_word_ids[ind]
+                    #          but that results in significantly worse performance
+                    #          I wish I understood why.
                     #          I think this means we won't sample any tags that appear in the batch    
                     neg_word_ids[ind] = self.negsampler.negsamp_ind(pos_word_ids, numSamps[1])         
                 else:
