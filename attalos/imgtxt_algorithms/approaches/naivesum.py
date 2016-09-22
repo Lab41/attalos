@@ -30,7 +30,7 @@ class NaiveSumModel(AttalosModel):
 
         layers = []
         layer = model_info["input"]
-        for i, hidden_size in enumerate(hidden_units[:-1]):
+        for i, hidden_size in enumerate(hidden_units):
             layer = tf.contrib.layers.relu(layer, hidden_size)
             layers.append(layer)
         

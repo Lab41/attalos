@@ -24,6 +24,7 @@ class FastZeroTagModel(AttalosModel):
         self.optim_words = kwargs.get("optim_words", True)
         self.hidden_units = kwargs.get("hidden_units", "200")
         self.use_batch_norm = kwargs.get("use_batch_norm",False)
+        self.opt_type = kwargs.get("opt_type","adam")
         if self.hidden_units=='0':                                                                                                  
             self.hidden_units=[]
         else:
@@ -94,7 +95,11 @@ class FastZeroTagModel(AttalosModel):
         loss = fztloss(self.model_info['prediction'], self.model_info['pos_vecs'], self.model_info['neg_vecs'])
         
         self.model_info['loss'] = loss
-        self.model_info['optimizer'] = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(loss)
+        if self.opt_type=='sgd':
+            optimizer=tf.train.GradientDescent
+        else:
+            optimizer=tf.train.AdamOptimizer
+        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)                  
 
 
     def predict_feats(self, sess, x):

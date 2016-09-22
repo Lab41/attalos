@@ -18,10 +18,11 @@ class NegSamplingModel(AttalosModel):
     def _construct_model_info(self, input_size, output_size, learning_rate, wv_arr,
                               hidden_units=[200],
                               optim_words=True,
-                              use_batch_norm=True):
+                              opt_type='adam',
+                              use_batch_norm=True,
+                              weight_decay=0.0):
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
-        # model_info['learning_rate'] = tf.placeholder(dtype=tf.float32)
 
         if optim_words:
             model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
@@ -64,7 +65,23 @@ class NegSamplingModel(AttalosModel):
         neg_loss = meanlogsig(-model_info["prediction"], model_info["neg_vecs"])
         model_info["loss"] = -(pos_loss + neg_loss)
 
-        model_info["optimizer"] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(model_info["loss"])
+        # Decide whether or not to use SGD or Adam Optimizers
+        if self.opt_type == 'sgd':
+            logger.info("Optimization uses SGD with non-variable rate")
+            optimizer = tf.train.GradientDescentOptimizer
+        else:
+            logger.info("Optimization uses Adam")
+            optimizer = tf.train.AdamOptimizer
+            
+        # Are we manually decaying the words? Create a TF variable in that case. 
+        if weight_decay:
+            logger.info("Learning rate is manually adaptive, dropping every ten (hard coded) epoch")
+            model_info['learning_rate'] = tf.placeholder(tf.float32, shape=[])
+        else:
+            model_info['learning_rate'] = learning_rate
+            
+        model_info["optimizer"] = optimizer(learning_rate=model_info['learning_rate']).minimize(model_info["loss"])
+
         #model_info["init_op"] = tf.initialize_all_variables()
         #model_info["saver"] = tf.train.Saver()
 
@@ -78,8 +95,14 @@ class NegSamplingModel(AttalosModel):
         train_dataset = datasets[0] # train_dataset should always be first in datasets
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
 
+        # Optimization parameters
+        # Starting learning rate, currently default to 0.001. This will change iteratively if decay is on.
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
+        self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.optim_words = kwargs.get("optim_words", True)
+        self.epoch_num = 0
+        
+        # Sampling methods
         self.ignore_posbatch = kwargs.get("ignore_posbatch",False)
         self.joint_factor = kwargs.get("joint_factor",1.0)
         self.hidden_units = kwargs.get("hidden_units", "200")
@@ -87,19 +110,31 @@ class NegSamplingModel(AttalosModel):
             self.hidden_units=[]
         else:
             self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
-        use_batch_norm = kwargs.get('use_batch_norm',False)
+        self.opt_type = kwargs.get("opt_type", "adam")
+        self.use_batch_norm = kwargs.get('use_batch_norm',False)
         self.model_info = self._construct_model_info(
             input_size = train_dataset.img_feat_size,
             output_size = self.one_hot.vocab_size,
             hidden_units=self.hidden_units,
             learning_rate = self.learning_rate,
             optim_words = self.optim_words,
-            use_batch_norm = use_batch_norm,
-            wv_arr = self.w
+            use_batch_norm = self.use_batch_norm,
+            wv_arr = self.w, weight_decay = self.weight_decay
         )
         self.test_one_hot = None
         self.test_w = None
         super(NegSamplingModel, self).__init__()
+
+    def iter_batches(self, dataset, batch_size):
+        for x, y in super(NegSamplingModel, self).iter_batches(dataset, batch_size):
+            yield x, y
+            
+        # This will decay the learning rate every ten epochs. Hardcoded ten currently...
+        if self.weight_decay:
+            if self.epoch_num and self.epoch_num % 10 == 0:
+                self.learning_rate *= self.weight_decay
+        	logger.info('Learning rate dropped to {}'.format(self.learning_rate))
+            self.epoch_num+=1
     
     def _get_ids(self, tag_ids, numSamps=[5, 10], uniform_sampling=False):
         """
@@ -165,6 +200,9 @@ class NegSamplingModel(AttalosModel):
                 self.model_info["pos_vecs"]: pvecs,
                 self.model_info["neg_vecs"]: nvecs
             }
+        
+        if self.weight_decay:
+            feed_dict[self.model_info['learning_rate']] = self.learning_rate
 
         return fetches, feed_dict
 
