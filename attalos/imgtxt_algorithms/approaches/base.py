@@ -96,6 +96,18 @@ class AttalosModel(object):
         """
         return self._run(sess, fetches, feed_dict)
 
+    def predict_feats(self, sess, image_features):
+        """
+        Take a numpy matrix of image features and predict word vector representation
+        Args:
+            sess: a Tensorflow session
+            image_features: numpy matrix of image feature vectors
+
+        Returns:
+            predicted features
+        """
+        return self._run(sess, self.model_info['input'], self.model_info['prediction'])
+
     def predict(self, sess, fetches, feed_dict):
         """
         Function responsible for returning predictions given a fitted Tensorflow session (sess), fetches, and feed_dict.
