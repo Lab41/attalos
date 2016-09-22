@@ -22,7 +22,7 @@ class FastZeroTagModel(AttalosModel):
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
-        self.hidden_units = kwargs.get("hidden_units", "200,200")
+        self.hidden_units = kwargs.get("hidden_units", "200")
         self.use_batch_norm = kwargs.get("use_batch_norm",False)
         if self.hidden_units=='0':                                                                                                  
             self.hidden_units=[]

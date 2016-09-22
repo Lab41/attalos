@@ -16,7 +16,7 @@ class NegSamplingModel(AttalosModel):
     """
 
     def _construct_model_info(self, input_size, output_size, learning_rate, wv_arr,
-                              hidden_units=[200,200],
+                              hidden_units=[200],
                               optim_words=True,
                               use_batch_norm=True):
         model_info = {}
@@ -82,7 +82,7 @@ class NegSamplingModel(AttalosModel):
         self.optim_words = kwargs.get("optim_words", True)
         self.ignore_posbatch = kwargs.get("ignore_posbatch",False)
         self.joint_factor = kwargs.get("joint_factor",1.0)
-        self.hidden_units = kwargs.get("hidden_units", "200,200")
+        self.hidden_units = kwargs.get("hidden_units", "200")
         if self.hidden_units=='0':
             self.hidden_units=[]
         else:
