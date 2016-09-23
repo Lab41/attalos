@@ -201,8 +201,8 @@ def main():
     # new args
     parser.add_argument("--hidden_units",
                         type=str,
-                        default="200,200",
-                        help="Define a neural network as comma separated layer sizes")
+                        default="200",
+                        help="Define a neural network as comma separated layer sizes. If log-reg, then set to '0'.")
     parser.add_argument("--cross_eval",
                         action="store_true",
                         default=False,
@@ -231,7 +231,26 @@ def main():
                         type=float,
                         default=1.0,
                         help="Multiplier for learning rate in updating joint optimization")
-
+    parser.add_argument("--use_batch_norm",
+                        action="store_true",
+                        default=False,
+                        help="Do we want to use batch normalization? Default is False")
+    parser.add_argument("--opt_type",
+                        type=str,
+                        default="adam",
+                        help="What type of optimizer would you like? Choices are (adam,sgd)")
+    parser.add_argument("--weight_decay",
+                        type=float,
+                        default=0.0,
+                        help="Weight decay to manually decay every 10 epochs. Default=0 for no decay.")
+    parser.add_argument("--scale_words",
+                        type=float,
+                        default=1.0,
+                        help="Scale the word vectors. If set to zero, scale by L2-norm. Otherwise, wordvec=scale x wordvec")
+    parser.add_argument("--scale_images",
+                        type=float,
+                        default=1.0,
+                        help="Scale the word vectors. If set to zero, scale by L2-norm. Otherwise, imvec=scale x imvec. ")
 
     args = parser.parse_args()
 

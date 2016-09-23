@@ -15,7 +15,7 @@ class NaiveSumModel(AttalosModel):
     This model performs linear regression via NN using the naive sum of word vectors as targets.
     """
     def _construct_model_info(self, input_size, output_size, learning_rate,
-                              hidden_units=[200,200]):
+                              hidden_units=[200]):
         logger.info("Input size: %s" % input_size)
         logger.info("Output size: %s" % output_size)
         
@@ -30,7 +30,7 @@ class NaiveSumModel(AttalosModel):
 
         layers = []
         layer = model_info["input"]
-        for i, hidden_size in enumerate(hidden_units[:-1]):
+        for i, hidden_size in enumerate(hidden_units):
             layer = tf.contrib.layers.relu(layer, hidden_size)
             layers.append(layer)
         
