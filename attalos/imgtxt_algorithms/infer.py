@@ -1,11 +1,13 @@
 import math
 import numpy as np
+import h5py
+import tensorflow as tf
 
 # Attalos Imports
-from attalos.imgtxt_algorithms.main import *
+from attalos.dataset.dataset import Dataset
+from attalos.imgtxt_algorithms.main import load_wv_model, ModelTypes, WordVectorTypes
 
 logger = l.getLogger(__name__)
-
 
 
 def infer_dataset(args):
@@ -40,7 +42,9 @@ def infer_dataset(args):
                 logger.error('Inference requires a saved model to be loaded')
                 raise ValueError('Inference requires a saved model')
 
-            for batch_num in math.ceil(dataset.num_images/batch_size):
+            num_batches = math.ceil(dataset.num_images/batch_size)
+            for batch_num in num_batches:
+                print('Batch {} of {}'.format(batch_num, num_batches))
                 start_index = batch_num*batch_size
                 stop_index = min((batch_num+1)*batch_size, dataset.num_images)
                 image_features = dataset.image_feats[start_index:stop_index]
@@ -104,9 +108,7 @@ def main():
                         default=1.0,
                         help="Multiplier for learning rate in updating joint optimization")
 
-
     args = parser.parse_args()
-
     infer_dataset(args)
 
 
