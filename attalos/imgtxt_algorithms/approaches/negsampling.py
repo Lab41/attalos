@@ -94,6 +94,11 @@ class NegSamplingModel(AttalosModel):
         self.negsampler = NegativeSampler(word_counts)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
+        scale_words = kwargs.get("scale_words",1.0)
+        if scale_words == 0.0:
+            self.w = (self.w.T / np.linalg.norm(self.w,axis=1)).T
+        else:
+            self.w *= scale_words
 
         # Optimization parameters
         # Starting learning rate, currently default to 0.001. This will change iteratively if decay is on.
@@ -131,7 +136,7 @@ class NegSamplingModel(AttalosModel):
             
         # This will decay the learning rate every ten epochs. Hardcoded ten currently...
         if self.weight_decay:
-            if self.epoch_num and self.epoch_num % 10 == 0:
+            if self.epoch_num and self.epoch_num % 15 == 0 and self.learning_rate > 1e-6:
                 self.learning_rate *= self.weight_decay
         	logger.info('Learning rate dropped to {}'.format(self.learning_rate))
             self.epoch_num+=1
