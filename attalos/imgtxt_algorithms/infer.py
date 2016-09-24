@@ -51,10 +51,9 @@ def infer_dataset(args):
                 stop_index = min((batch_num+1)*batch_size, dataset.num_images)
                 image_features = dataset.image_feats[start_index:stop_index]
                 output_feats = model.predict_feats(sess, image_features)
-                print(output_feats.shape, output_file['preds'][start_index:stop_index].shape)
                 output_file['preds'][start_index:stop_index] = output_feats
 
-        output_file.create_dataset('ids', data=image_ids)
+        output_file.create_dataset('ids', data=dataset.image_ids)
         output_file.close()
 
 
