@@ -106,7 +106,7 @@ class AttalosModel(object):
         Returns:
             predicted features
         """
-        return self._run(sess, self.model_info['input'], self.model_info['prediction'])
+        return self._run(sess, self.model_info['prediction'], {self.model_info['input']:image_features})
 
     def predict(self, sess, fetches, feed_dict):
         """
