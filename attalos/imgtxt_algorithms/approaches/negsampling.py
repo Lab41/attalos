@@ -83,8 +83,9 @@ class NegSamplingModel(AttalosModel):
     def __init__(self, wv_model, datasets, **kwargs):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
+        self.fast_sample = kwargs.get("fast_sample", False)
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
-        self.negsampler = NegativeSampler(word_counts)
+        self.negsampler = NegativeSampler(word_counts, self.fast_sample)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
         scale_words = kwargs.get("scale_words",1.0)

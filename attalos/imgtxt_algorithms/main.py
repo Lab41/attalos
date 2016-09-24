@@ -251,6 +251,11 @@ def main():
                         type=float,
                         default=1.0,
                         help="Scale the word vectors. If set to zero, scale by L2-norm. Otherwise, imvec=scale x imvec. ")
+    parser.add_argument("--fast_sample",
+                        action="store_true",
+                        default=False,
+                        help="Fast sample based on distribution, only use in large dictionaries")
+
 
     args = parser.parse_args()
 
