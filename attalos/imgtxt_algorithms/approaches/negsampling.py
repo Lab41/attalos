@@ -29,15 +29,8 @@ class NegSamplingModel(AttalosModel):
             model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Optimization on GPU, word vectors are stored separately.")
         else:
-            model_info["w2v"] = tf.Variable(wv_arr, dtype=tf.float32)
-            model_info["pos_ids"] = tf.placeholder(dtype=tf.int32)
-            model_info["neg_ids"] = tf.placeholder(dtype=tf.int32)
-            model_info["pos_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
-                                                                         model_info["pos_ids"]),
-                                                       perm=[1,0,2])
-            model_info["neg_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
-                                                                         model_info["neg_ids"]),
-                                                       perm=[1,0,2])
+            model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
+            model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Not optimizing word vectors.")
 
         # Construct fully connected layers
@@ -181,30 +174,25 @@ class NegSamplingModel(AttalosModel):
         pos_ids, neg_ids = self._get_ids(text_feat_ids)
         self.pos_ids = pos_ids
         self.neg_ids = neg_ids
-
+        
+        pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
+        nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
+        for i, ids in enumerate(pos_ids):
+            pvecs[i] = self.w[ids]
+        for i, ids in enumerate(neg_ids):
+            nvecs[i] = self.w[ids]
+        pvecs = pvecs.transpose((1, 0, 2))
+        nvecs = nvecs.transpose((1, 0, 2))
+        feed_dict = {
+            self.model_info["input"]: img_feats,
+            self.model_info["pos_vecs"]: pvecs,
+            self.model_info["neg_vecs"]: nvecs
+         }
+            
         if not self.optim_words:
             fetches = [self.model_info["optimizer"], self.model_info["loss"]]
-            feed_dict = {
-                self.model_info["input"]: img_feats,
-                self.model_info["pos_ids"]: pos_ids,
-                self.model_info["neg_ids"]: neg_ids
-            }
         else:
-            pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
-            nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
-            for i, ids in enumerate(pos_ids):
-                pvecs[i] = self.w[ids]
-            for i, ids in enumerate(neg_ids):
-                nvecs[i] = self.w[ids]
-            pvecs = pvecs.transpose((1, 0, 2))
-            nvecs = nvecs.transpose((1, 0, 2))
-
             fetches = [self.model_info["optimizer"], self.model_info["loss"], self.model_info["prediction"]]
-            feed_dict = {
-                self.model_info["input"]: img_feats,
-                self.model_info["pos_vecs"]: pvecs,
-                self.model_info["neg_vecs"]: nvecs
-            }
         
         if self.weight_decay:
             feed_dict[self.model_info['learning_rate']] = self.learning_rate

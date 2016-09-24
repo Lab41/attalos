@@ -4,6 +4,7 @@ import h5py
 import tensorflow as tf
 
 # Attalos Imports
+import attalos.util.log.log as l
 from attalos.dataset.dataset import Dataset
 from attalos.imgtxt_algorithms.main import load_wv_model, ModelTypes, WordVectorTypes
 
@@ -18,7 +19,7 @@ def infer_dataset(args):
     wv_model = load_wv_model(args.word_vector_file, args.word_vector_type)
 
     output_file = h5py.File(args.output_hdf5_file, 'w')
-    output_file.create_dataset('preds', (dataset.num_images, wv_model.get_word_vector_shape()),
+    output_file.create_dataset('preds', (dataset.num_images, wv_model.get_word_vector_shape()[0]),
                                dtype=np.float32)
 
     with tf.Graph().as_default():
@@ -37,18 +38,21 @@ def infer_dataset(args):
         with tf.Session(config=config) as sess:
             model.initialize_model(sess)
             if args.model_input_path:
+                logger.info("Loading stored weights")
                 model.load(sess, args.model_input_path)
             else:
                 logger.error('Inference requires a saved model to be loaded')
                 raise ValueError('Inference requires a saved model')
 
             num_batches = math.ceil(dataset.num_images/batch_size)
-            for batch_num in num_batches:
-                print('Batch {} of {}'.format(batch_num, num_batches))
+            for batch_num in range(int(num_batches)):
+                logger.info('Batch {} of {}'.format(batch_num, num_batches))
                 start_index = batch_num*batch_size
                 stop_index = min((batch_num+1)*batch_size, dataset.num_images)
                 image_features = dataset.image_feats[start_index:stop_index]
-                output_file['preds'][start_index:stop_index] = model.predict(image_features)
+                output_feats = model.predict_feats(sess, image_features)
+                print(output_feats.shape, output_file['preds'][start_index:stop_index].shape)
+                output_file['preds'][start_index:stop_index] = output_feats
 
         output_file.create_dataset('ids', data=image_ids)
         output_file.close()
