@@ -104,8 +104,8 @@ def evaluate(sess, model, fetches, feed_dict, truth):
 
 def load_wv_model(word_vector_file, word_vector_type):
     if word_vector_type == WordVectorTypes.glove.name:
-        from glove import Glove
-        glove_model = Glove.load_stanford(word_vector_file)
+        #from glove import Glove
+        glove_model = GloveWrapper.load(word_vector_file)
         wv_model = GloveWrapper(glove_model)
     else: 
         import word2vec
