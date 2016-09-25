@@ -81,13 +81,18 @@ class NegSamplingModel(AttalosModel):
         return model_info
 
     def __init__(self, wv_model, datasets, **kwargs):
+        logger.info('Creating one hot')
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
         self.fast_sample = kwargs.get("fast_sample", False)
+        logger.info('Getting wordcount from dataset')
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
+        logger.info('Creating ngative sampler')
         self.negsampler = NegativeSampler(word_counts, self.fast_sample)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
+        logger.info('Constructing W')
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
+        logger.info('Scaling words')
         scale_words = kwargs.get("scale_words",1.0)
         if scale_words == 0.0:
             self.w = (self.w.T / np.linalg.norm(self.w,axis=1)).T
@@ -122,6 +127,7 @@ class NegSamplingModel(AttalosModel):
         )
         self.test_one_hot = None
         self.test_w = None
+        logger.info('Init complete')
         super(NegSamplingModel, self).__init__()
 
     def iter_batches(self, dataset, batch_size):
