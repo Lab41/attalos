@@ -36,9 +36,15 @@ class NegativeSampler:
         else:
             iterable_datasets = [datasets] 
         
+        word_counts_text = defaultdict(int)
         for dataset in iterable_datasets:
             for tags in dataset.text_feats.values():
-                word_counts += one_hot.get_multiple(tags) 
+                for tag in tags:
+                    word_counts_text[tag] += 1
+        for word in word_counts_text:
+            if word in one_hot:
+                word_ind = one_hot.get_index(word)
+                word_counts[word_ind] = word_counts_text[word]
         return word_counts
     
     def getpdf(self):
