@@ -18,7 +18,8 @@ class FastZeroTagModel(AttalosModel):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
-        self.negsampler = NegativeSampler(word_counts)
+        self.fast_sample = kwargs.get("fast_sample", False)
+        self.negsampler = NegativeSampler(word_counts, self.fast_sample)
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
@@ -99,7 +100,8 @@ class FastZeroTagModel(AttalosModel):
             optimizer=tf.train.GradientDescent
         else:
             optimizer=tf.train.AdamOptimizer
-        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)                  
+        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)     
+        super(FastZeroTagModel, self).__init__()   
 
 
     def predict_feats(self, sess, x):
