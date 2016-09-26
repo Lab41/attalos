@@ -14,7 +14,7 @@ class GloveWrapper(WordVectorWrapper):
     def get_vector(self, key):
         return self.w2v[key]
     def get_word_vector_shape(self):
-        return self.w2v.shape[1]
+        return self.w2v[self.vocab[0]].shape
     def get_vocab(self):
         return self.vocab
     def closest_words(self, vector, k):
