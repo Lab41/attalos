@@ -12,7 +12,7 @@ logger = l.getLogger(__name__)
 
 
 def infer_dataset(args):
-    logger.info("Parsing train and test datasets.")
+    logger.info("Parsing dataset to convert.")
     dataset = Dataset(args.image_feature_file_train, args.text_feature_file_train)
 
     logger.info("Reading word vectors from file.")
@@ -27,8 +27,6 @@ def infer_dataset(args):
         logger.info("Selecting model class: %s" % model_cls.__name__)
         datasets = [dataset]
         model = model_cls(wv_model, datasets, **vars(args))
-
-        logger.info("Preparing test_dataset.")
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
