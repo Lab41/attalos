@@ -18,7 +18,8 @@ class FastZeroTagModel(AttalosModel):
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
-        self.negsampler = NegativeSampler(word_counts)
+        self.fast_sample = kwargs.get("fast_sample", False)
+        self.negsampler = NegativeSampler(word_counts, self.fast_sample)
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.optim_words = kwargs.get("optim_words", True)
@@ -32,16 +33,8 @@ class FastZeroTagModel(AttalosModel):
         self.model_info = dict()
          # Placeholders for data
         self.model_info['input'] = tf.placeholder(shape=(None, datasets[0].img_feat_size), dtype=tf.float32)
-        self.model_info['pos_ids'] = tf.placeholder(dtype=tf.int32)
-        self.model_info['neg_ids'] = tf.placeholder(dtype=tf.int32)
-        
-        self.model_info['w2v'] = tf.Variable(self.w, dtype=tf.float32)
-        self.model_info['pos_vecs'] = tf.transpose(tf.nn.embedding_lookup(self.model_info['w2v'],
-                                                                         self.model_info['pos_ids']), 
-                                                  perm=[1,0,2])
-        self.model_info['neg_vecs'] = tf.transpose(tf.nn.embedding_lookup(self.model_info['w2v'],
-                                                                       self.model_info['neg_ids']), 
-                                                perm=[1,0,2])
+        self.model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
+        self.model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
 
         # Construct fully connected layers
         layer = self.model_info['input']
@@ -99,7 +92,8 @@ class FastZeroTagModel(AttalosModel):
             optimizer=tf.train.GradientDescent
         else:
             optimizer=tf.train.AdamOptimizer
-        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)                  
+        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)     
+        super(FastZeroTagModel, self).__init__()   
 
 
     def predict_feats(self, sess, x):
@@ -138,14 +132,21 @@ class FastZeroTagModel(AttalosModel):
             text_feat_ids.append([self.one_hot.get_index(tag) for tag in tags if tag in self.one_hot])
 
         pos_ids, neg_ids = self._get_ids(text_feat_ids)
-        self.pos_ids = pos_ids
-        self.neg_ids = neg_ids
-
+        
+        pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
+        nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
+        for i, ids in enumerate(pos_ids):
+            pvecs[i] = self.w[ids]
+        for i, ids in enumerate(neg_ids):
+            nvecs[i] = self.w[ids]
+        pvecs = pvecs.transpose((1, 0, 2))
+        nvecs = nvecs.transpose((1, 0, 2))
+        
         fetches = [self.model_info["optimizer"], self.model_info["loss"]]
         feed_dict = {
             self.model_info["input"]: img_feats,
-            self.model_info["pos_ids"]: pos_ids,
-            self.model_info["neg_ids"]: neg_ids
+            self.model_info["pos_vecs"]: pvecs,
+            self.model_info["neg_vecs"]: nvecs
         }
 
         return fetches, feed_dict

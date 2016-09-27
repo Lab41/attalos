@@ -5,9 +5,12 @@ from __future__ import print_function
 from collections import defaultdict, Iterable
 import numpy as np
 
+import attalos.util.log.log as l
+logger = l.getLogger(__name__)
+
 class NegativeSampler:
 
-    def __init__(self, word_count):
+    def __init__(self, word_count, fastmode=False, numsamples=1000000):
         """Initialize NegativeSampler with the word count of the corpus.
         Args:
             word_count (list): A list of numbers indicating the number of times
@@ -17,6 +20,13 @@ class NegativeSampler:
         # Set the probability distribution of labels
         self.labelpdf = word_count / word_count.sum()
         self.vocabsize = len(self.labelpdf)
+        self.fastmode = fastmode
+        if self.fastmode:
+            logger.info('Running in fast negative sampling mode')
+            self.rand_reserve = np.random.choice(self.vocabsize, 
+                                                 size=numsamples, 
+                                                 p=self.labelpdf)
+            logger.info('Complted random reserve creation')
     
     @staticmethod
     def get_wordcount_from_datasets(datasets, one_hot):
@@ -26,9 +36,15 @@ class NegativeSampler:
         else:
             iterable_datasets = [datasets] 
         
+        word_counts_text = defaultdict(int)
         for dataset in iterable_datasets:
             for tags in dataset.text_feats.values():
-                word_counts += one_hot.get_multiple(tags) 
+                for tag in tags:
+                    word_counts_text[tag] += 1
+        for word in word_counts_text:
+            if word in one_hot:
+                word_ind = one_hot.get_index(word)
+                word_counts[word_ind] = word_counts_text[word]
         return word_counts
     
     def getpdf(self):
@@ -49,6 +65,9 @@ class NegativeSampler:
         return np.random.choice(self.vocabsize, size=num2samp, p=nlabelpdf)
     
     def negsamp_ind(self, ignored_inds, num2samp):
+        if self.fastmode:
+            rand_inds = np.random.randint(0, self.rand_reserve.shape[0], num2samp)
+            return self.rand_reserve[rand_inds]
         nlabelpdf = np.copy(self.labelpdf)
         nlabelpdf[ignored_inds] = 0
         nlabelpdf /= nlabelpdf.sum()

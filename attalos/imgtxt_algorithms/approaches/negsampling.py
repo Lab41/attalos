@@ -23,21 +23,12 @@ class NegSamplingModel(AttalosModel):
                               weight_decay=0.0):
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
-
+        model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
+        model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
+        
         if optim_words:
-            model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
-            model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Optimization on GPU, word vectors are stored separately.")
         else:
-            model_info["w2v"] = tf.Variable(wv_arr, dtype=tf.float32)
-            model_info["pos_ids"] = tf.placeholder(dtype=tf.int32)
-            model_info["neg_ids"] = tf.placeholder(dtype=tf.int32)
-            model_info["pos_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
-                                                                         model_info["pos_ids"]),
-                                                       perm=[1,0,2])
-            model_info["neg_vecs"] = tf.transpose(tf.nn.embedding_lookup(model_info["w2v"],
-                                                                         model_info["neg_ids"]),
-                                                       perm=[1,0,2])
             logger.info("Not optimizing word vectors.")
 
         # Construct fully connected layers
@@ -51,6 +42,7 @@ class NegSamplingModel(AttalosModel):
                 layers.append(layer)
 
         # Output layer should always be linear
+        print('Word Vector Shape: ', wv_arr.shape)
         layer = tf.contrib.layers.linear(layer, wv_arr.shape[1])
         layers.append(layer)
 
@@ -82,18 +74,21 @@ class NegSamplingModel(AttalosModel):
             
         model_info["optimizer"] = optimizer(learning_rate=model_info['learning_rate']).minimize(model_info["loss"])
 
-        #model_info["init_op"] = tf.initialize_all_variables()
-        #model_info["saver"] = tf.train.Saver()
-
         return model_info
 
     def __init__(self, wv_model, datasets, **kwargs):
+        logger.info('Creating one hot')
         self.wv_model = wv_model
         self.one_hot = OneHot(datasets, valid_vocab=wv_model.vocab)
+        self.fast_sample = kwargs.get("fast_sample", False)
+        logger.info('Getting wordcount from dataset')
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
-        self.negsampler = NegativeSampler(word_counts)
+        logger.info('Creating negative sampler')
+        self.negsampler = NegativeSampler(word_counts, self.fast_sample)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
+        logger.info('Constructing W')
         self.w = construct_W(wv_model, self.one_hot.get_key_ordering()).T
+        logger.info('Scaling words')
         scale_words = kwargs.get("scale_words",1.0)
         if scale_words == 0.0:
             self.w = (self.w.T / np.linalg.norm(self.w,axis=1)).T
@@ -128,6 +123,7 @@ class NegSamplingModel(AttalosModel):
         )
         self.test_one_hot = None
         self.test_w = None
+        logger.info('Init complete')
         super(NegSamplingModel, self).__init__()
 
     def iter_batches(self, dataset, batch_size):
@@ -181,30 +177,25 @@ class NegSamplingModel(AttalosModel):
         pos_ids, neg_ids = self._get_ids(text_feat_ids)
         self.pos_ids = pos_ids
         self.neg_ids = neg_ids
-
+        
+        pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
+        nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
+        for i, ids in enumerate(pos_ids):
+            pvecs[i] = self.w[ids]
+        for i, ids in enumerate(neg_ids):
+            nvecs[i] = self.w[ids]
+        pvecs = pvecs.transpose((1, 0, 2))
+        nvecs = nvecs.transpose((1, 0, 2))
+        feed_dict = {
+            self.model_info["input"]: img_feats,
+            self.model_info["pos_vecs"]: pvecs,
+            self.model_info["neg_vecs"]: nvecs
+         }
+            
         if not self.optim_words:
             fetches = [self.model_info["optimizer"], self.model_info["loss"]]
-            feed_dict = {
-                self.model_info["input"]: img_feats,
-                self.model_info["pos_ids"]: pos_ids,
-                self.model_info["neg_ids"]: neg_ids
-            }
         else:
-            pvecs = np.zeros((pos_ids.shape[0], pos_ids.shape[1], self.w.shape[1]))
-            nvecs = np.zeros((neg_ids.shape[0], neg_ids.shape[1], self.w.shape[1]))
-            for i, ids in enumerate(pos_ids):
-                pvecs[i] = self.w[ids]
-            for i, ids in enumerate(neg_ids):
-                nvecs[i] = self.w[ids]
-            pvecs = pvecs.transpose((1, 0, 2))
-            nvecs = nvecs.transpose((1, 0, 2))
-
             fetches = [self.model_info["optimizer"], self.model_info["loss"], self.model_info["prediction"]]
-            feed_dict = {
-                self.model_info["input"]: img_feats,
-                self.model_info["pos_vecs"]: pvecs,
-                self.model_info["neg_vecs"]: nvecs
-            }
         
         if self.weight_decay:
             feed_dict[self.model_info['learning_rate']] = self.learning_rate

@@ -104,8 +104,8 @@ def evaluate(sess, model, fetches, feed_dict, truth):
 
 def load_wv_model(word_vector_file, word_vector_type):
     if word_vector_type == WordVectorTypes.glove.name:
-        from glove import Glove
-        glove_model = Glove.load_stanford(word_vector_file)
+        #from glove import Glove
+        glove_model = GloveWrapper.load(word_vector_file)
         wv_model = GloveWrapper(glove_model)
     else: 
         import word2vec
@@ -251,6 +251,11 @@ def main():
                         type=float,
                         default=1.0,
                         help="Scale the word vectors. If set to zero, scale by L2-norm. Otherwise, imvec=scale x imvec. ")
+    parser.add_argument("--fast_sample",
+                        action="store_true",
+                        default=False,
+                        help="Fast sample based on distribution, only use in large dictionaries")
+
 
     args = parser.parse_args()
 

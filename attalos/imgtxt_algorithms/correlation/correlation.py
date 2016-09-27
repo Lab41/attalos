@@ -15,7 +15,23 @@ def construct_W(w2v_model, vocab, dtype=np.float64):
         a numpy ndarray
     """
     w2v_vocab = set(w2v_model.vocab)
-    return np.asarray([w2v_model.get_vector(word) for word in vocab if word in w2v_vocab], dtype=dtype).T
+    valid_word = None
+    valid_count = 0
+    for word in vocab:
+        if word in w2v_vocab:
+            valid_count += 1
+            if valid_word is None:
+                valid_word = word
+    
+    word_vector_shape = w2v_model.get_vector(valid_word).shape[0]
+    w = np.zeros((valid_count, word_vector_shape), dtype=dtype)
+    
+    ind = 0
+    for word in vocab:
+        if word in w2v_vocab:
+            w[ind] = w2v_model.get_vector(word)
+            ind += 1
+    return w.T
 
 
 def get_invalid_labels(labels, valid_labels):
