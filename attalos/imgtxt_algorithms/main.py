@@ -124,8 +124,7 @@ def convert_args_and_call_model(args):
     with tf.Graph().as_default():
         model_cls = ModelTypes[args.model_type].value
         logger.info("Selecting model class: %s" % model_cls.__name__)
-        datasets = [train_dataset] if args.cross_eval else [train_dataset, test_dataset]
-        model = model_cls(wv_model, datasets, **vars(args))
+        model = model_cls(wv_model, [train_dataset], **vars(args))
 
         logger.info("Preparing test_dataset.")
         fetches, feed_dict, truth = model.prep_predict(test_dataset)
@@ -251,6 +250,10 @@ def main():
                         type=float,
                         default=1.0,
                         help="Scale the word vectors. If set to zero, scale by L2-norm. Otherwise, imvec=scale x imvec. ")
+    parser.add_argument("--scale_alpha",
+                        type=float,
+                        default=0.2,
+                        help="Scale the set difference for tuning purposes. This needs to be changed. ")
     parser.add_argument("--fast_sample",
                         action="store_true",
                         default=False,
