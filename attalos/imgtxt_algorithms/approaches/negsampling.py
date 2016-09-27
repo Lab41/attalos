@@ -23,14 +23,12 @@ class NegSamplingModel(AttalosModel):
                               weight_decay=0.0):
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
-
+        model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
+        model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
+        
         if optim_words:
-            model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
-            model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Optimization on GPU, word vectors are stored separately.")
         else:
-            model_info["pos_vecs"] = tf.placeholder(dtype=tf.float32)
-            model_info["neg_vecs"] = tf.placeholder(dtype=tf.float32)
             logger.info("Not optimizing word vectors.")
 
         # Construct fully connected layers
@@ -44,6 +42,7 @@ class NegSamplingModel(AttalosModel):
                 layers.append(layer)
 
         # Output layer should always be linear
+        print('Word Vector Shape: ', wv_arr.shape)
         layer = tf.contrib.layers.linear(layer, wv_arr.shape[1])
         layers.append(layer)
 
@@ -75,9 +74,6 @@ class NegSamplingModel(AttalosModel):
             
         model_info["optimizer"] = optimizer(learning_rate=model_info['learning_rate']).minimize(model_info["loss"])
 
-        #model_info["init_op"] = tf.initialize_all_variables()
-        #model_info["saver"] = tf.train.Saver()
-
         return model_info
 
     def __init__(self, wv_model, datasets, **kwargs):
@@ -87,7 +83,7 @@ class NegSamplingModel(AttalosModel):
         self.fast_sample = kwargs.get("fast_sample", False)
         logger.info('Getting wordcount from dataset')
         word_counts = NegativeSampler.get_wordcount_from_datasets(datasets, self.one_hot)
-        logger.info('Creating ngative sampler')
+        logger.info('Creating negative sampler')
         self.negsampler = NegativeSampler(word_counts, self.fast_sample)
         train_dataset = datasets[0] # train_dataset should always be first in datasets
         logger.info('Constructing W')

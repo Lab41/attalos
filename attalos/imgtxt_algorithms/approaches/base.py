@@ -98,7 +98,9 @@ class AttalosModel(object):
 
     def predict_feats(self, sess, image_features):
         """
-        Take a numpy matrix of image features and predict word vector representation
+        Take a numpy matrix of image features and predict word vector representation. This differs
+        from predict in that this only expects a session and raw image features where as predict
+        expects the output of prep_predict
         Args:
             sess: a Tensorflow session
             image_features: numpy matrix of image feature vectors
