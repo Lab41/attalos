@@ -74,18 +74,13 @@ class NaiveSumModel(AttalosModel):
         return fetches, feed_dict
 
     def prep_predict(self, dataset, cross_eval=False):
+        if self.test_one_hot is None or self.test_dataset is dataset:
+            self.test_dataset = dataset
+            self.test_one_hot = OneHot([dataset], valid_vocab=self.wv_model.vocab)
+            self.test_w = construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
+            
         x = []
         y = []
-        if cross_eval:
-            self.test_one_hot = OneHot([dataset], valid_vocab=self.wv_model.vocab)
-            #self.test_wv_transformer = NaiveW2V.create_from_vocab(self.wv_model, self.test_one_hot,
-            #                                                      vocab=self.test_one_hot.get_key_ordering())
-        else:
-            self.test_one_hot = self.one_hot
-            #self.test_wv_transformer = self.test_wv_transformer
-
-        self.test_w = construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
-
         for idx in dataset:
             image_feats, text_feats = dataset.get_index(idx)
             text_feats = self.test_one_hot.get_multiple(text_feats)
