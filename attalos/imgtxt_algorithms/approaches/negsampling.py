@@ -1,3 +1,4 @@
+import gzip
 import numpy as np
 import tensorflow as tf
 from scipy.special import expit as sigmoid
@@ -96,10 +97,11 @@ class NegSamplingModel(AttalosModel):
             self.w *= scale_words
 
         # Optimization parameters
-        # Starting learning rate, currently default to 0.001. This will change iteratively if decay is on.
+        # Starting learning rate, currently default to 0.0001. This will change iteratively if decay is on.
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
         self.weight_decay = kwargs.get("weight_decay", 0.0)
         self.optim_words = kwargs.get("optim_words", True)
+        self.scale_alpha = kwargs.get("scale_alpha", 0.2)
         self.epoch_num = 0
         
         # Sampling methods
@@ -217,18 +219,47 @@ class NegSamplingModel(AttalosModel):
         return fit_fetches
 
     def prep_predict(self, dataset, cross_eval=False):
-        if cross_eval:
+        
+        if self.test_one_hot is None or self.test_dataset is dataset:
+            self.test_dataset = dataset
             self.test_one_hot = OneHot([dataset], valid_vocab=self.wv_model.vocab)
             self.test_w = construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
-        else:
-            self.test_one_hot = self.one_hot
-            self.test_w = self.w
 
+            # If we're optimizing for words, we need to create the correlation matrix
+            # This correlation matrix is of size (setdiff x setunion). Right now, it's only
+            # (setdiff x trainingset)
+            if self.optim_words:
+                train_words={}
+                for i,word in enumerate(self.one_hot.get_key_ordering()):
+                    train_words[word]=i
+
+                self.overlap_test = []
+                self.overlap_train = []
+                self.set_diff = []
+                for i,word in enumerate(self.test_one_hot.get_key_ordering()):
+                    if word in train_words:
+                        self.overlap_test += [i] 
+                        self.overlap_train += [train_words[word]]
+                    else:
+                        self.set_diff += [i]
+                # Correlation matrix is test correlated with train
+                # wunion = np.array( list(self.w) + list(wdiff) )
+                # self.Cwd = wunion.dot(wdiff.T)
+                wdiff = self.test_w[self.set_diff]
+                self.Cwd = self.w.dot( wdiff.T )
+        if self.optim_words:
+            if len(self.overlap_test):
+                self.test_w[ self.overlap_test ] = self.w[ self.overlap_train ]
+            if len(self.set_diff):                
+                # Don't use the union. This needs to be fixed.
+                diffvecs = np.linalg.inv( self.w.T.dot(self.w) ).dot(self.w.T).dot(self.Cwd)
+                self.test_w[ self.set_diff ] = self.scale_alpha*diffvecs.T
+                
         x = []
         y = []
         for idx in dataset:
             image_feats, text_feats = dataset.get_index(idx)
-            text_feats = self.one_hot.get_multiple(text_feats)
+            text_feats = self.test_one_hot.get_multiple(text_feats)
             x.append(image_feats)
             y.append(text_feats)
         x = np.asarray(x)
@@ -241,13 +272,26 @@ class NegSamplingModel(AttalosModel):
         truth = y
         return fetches, feed_dict, truth
 
-    def post_predict(self, predict_fetches, cross_eval=False):
+    def post_predict(self, predict_fetches, 
+                     _eval=False):
         predictions = predict_fetches[0]
-        if cross_eval and self.test_w is None:
-            raise Exception("test_w is not set. Did you call prep_predict?")
+#        if cross_eval and self.test_w is None:
+#            raise Exception("test_w is not set. Did you call prep_predict?")
         predictions = np.dot(predictions, self.test_w.T)
         return predictions
-
+    
+    def save(self, sess, model_output_path):
+        if self.optim_words:
+            model_output_path_word_vec = model_output_path + '.wordvecs.gz'
+            fOut = gzip.open(model_output_path_word_vec, 'w')
+            for word in self.one_hot.get_key_ordering():
+                output_line = word + ' '
+                word_index = self.one_hot.get_index(word)
+                output_line += ' '.join(map(str, self.w[word_index])) + '\n'
+                fOut.write(output_line)
+            fOut.close()
+        super(NegSamplingModel, self).save(sess, model_output_path)
+        
     def get_training_loss(self, fit_fetches):
         return fit_fetches[1]
 

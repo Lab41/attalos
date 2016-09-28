@@ -92,7 +92,8 @@ class FastZeroTagModel(AttalosModel):
             optimizer=tf.train.GradientDescent
         else:
             optimizer=tf.train.AdamOptimizer
-        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)     
+        self.model_info['optimizer'] = optimizer(learning_rate=self.learning_rate).minimize(loss)
+        self.test_one_hot = None
         super(FastZeroTagModel, self).__init__()   
 
 
@@ -152,18 +153,17 @@ class FastZeroTagModel(AttalosModel):
         return fetches, feed_dict
     
     def prep_predict(self, dataset, cross_eval=False):
-        if cross_eval:
+        if self.test_one_hot is None or self.test_dataset is dataset:
+            self.test_dataset = dataset
             self.test_one_hot = OneHot([dataset], valid_vocab=self.wv_model.vocab)
             self.test_w = construct_W(self.wv_model, self.test_one_hot.get_key_ordering()).T
-        else:
-            self.test_one_hot = self.one_hot
-            self.test_w = self.w
+     
 
         x = []
         y = []
         for idx in dataset:
             image_feats, text_feats = dataset.get_index(idx)
-            text_feats = self.one_hot.get_multiple(text_feats)
+            text_feats = self.test_one_hot.get_multiple(text_feats)
             x.append(image_feats)
             y.append(text_feats)
         x = np.asarray(x)

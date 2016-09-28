@@ -58,7 +58,7 @@ class MultihotModel(AttalosModel):
         y = []
         for idx in dataset:
             image_feats, text_feats = dataset.get_index(idx)
-            text_feats = self.one_hot.get_multiple(text_feats)
+            text_feats = self.test_one_hot.get_multiple(text_feats)
             x.append(image_feats)
             y.append(text_feats)
         x = np.asarray(x)

@@ -68,7 +68,7 @@ def train_epoch(sess, model, train_dataset, batch_size):
     avg_training_loss = sum(training_losses) / float(len(training_losses))
     return avg_training_loss
 
-def train(sess, model, num_epochs, train_dataset, batch_size, epoch_verbosity=10, mid_eval=None):
+def train(sess, model, num_epochs, train_dataset, batch_size, epoch_verbosity=10, eval_dataset=None):
     """
     Given a Tensorflow session, train the provided model for num_epochs over train_dataset using batch_size with the provided epoch_verbosity rate.
 
@@ -90,8 +90,8 @@ def train(sess, model, num_epochs, train_dataset, batch_size, epoch_verbosity=10
         if verbose:
             logger.debug("Finished epoch %s. (Avg. training loss: %s)" % (cur_epoch, avg_training_loss))
             avg_training_losses.append(avg_training_loss)
-            if mid_eval is not None:
-                fetches, feed_dict, truth = mid_eval
+            if eval_dataset is not None:
+                fetches, feed_dict, truth = model.prep_predict(eval_dataset)
                 evaluate(sess, model, fetches, feed_dict, truth)
 
 def evaluate(sess, model, fetches, feed_dict, truth):
@@ -127,8 +127,7 @@ def convert_args_and_call_model(args):
         datasets = [train_dataset] if args.cross_eval else [train_dataset, test_dataset]
         model = model_cls(wv_model, datasets, **vars(args))
 
-        logger.info("Preparing test_dataset.")
-        fetches, feed_dict, truth = model.prep_predict(test_dataset)
+        
 
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -138,11 +137,15 @@ def convert_args_and_call_model(args):
             if args.model_input_path:
                 model.load(sess, args.model_input_path)
             logger.info("Starting training phase.")
-            mid_eval = (fetches, feed_dict, truth) if args.verbose_eval else None
-            avg_training_losses = train(sess, model, args.num_epochs, train_dataset, args.batch_size, args.epoch_verbosity, mid_eval=mid_eval)
+            #mid_eval = (fetches, feed_dict, truth) if args.verbose_eval else None
+            eval_dataset = test_dataset if args.verbose_eval else None
+            avg_training_losses = train(sess, model, args.num_epochs, train_dataset, args.batch_size, args.epoch_verbosity, eval_dataset=eval_dataset)
             if args.model_output_path:
                 model.save(sess, args.model_output_path)
 
+            
+            logger.info("Preparing test_dataset.")
+            fetches, feed_dict, truth = model.prep_predict(test_dataset)
             logger.info("Starting evaluation phase.")
             performance.append(evaluate(sess, model, fetches, feed_dict, truth))        
     return performance
