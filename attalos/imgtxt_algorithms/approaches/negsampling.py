@@ -1,3 +1,4 @@
+import gzip
 import numpy as np
 import tensorflow as tf
 from scipy.special import expit as sigmoid
@@ -278,7 +279,19 @@ class NegSamplingModel(AttalosModel):
 #            raise Exception("test_w is not set. Did you call prep_predict?")
         predictions = np.dot(predictions, self.test_w.T)
         return predictions
-
+    
+    def save(self, sess, model_output_path):
+        if self.optim_words:
+            model_output_path_word_vec = model_output_path + '.wordvecs.gz'
+            fOut = gzip.open(model_output_path_word_vec, 'w')
+            for word in self.one_hot.get_key_ordering():
+                output_line = word + ' '
+                word_index = self.one_hot.get_index(word)
+                output_line += ' '.join(map(str, self.w[word_index])) + '\n'
+                fOut.write(output_line)
+            fOut.close()
+        super(NegSamplingModel, self).save(sess, model_output_path)
+        
     def get_training_loss(self, fit_fetches):
         return fit_fetches[1]
 
