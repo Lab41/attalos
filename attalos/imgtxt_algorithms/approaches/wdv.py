@@ -12,35 +12,27 @@ logger = l.getLogger(__name__)
 
 class WDVModel(AttalosModel):
     """
-    This model performs linear regression via NN using the naive sum of word vectors as targets.
+    This model performs logistic regression via NN using word distribution vectors (correlation vectors) as targets.
     """
-    def _construct_model_info(self, input_size, output_size, learning_rate):
+
+    def _construct_model_info(self, input_size, output_size, learning_rate,
+                              hidden_units=[200]):
         logger.info("Input size: %s" % input_size)
         logger.info("Output size: %s" % output_size)
         
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
         model_info["y_truth"] = tf.placeholder(shape=(None, output_size), dtype=tf.float32)
+
+        layers = []
+        layer = model_info["input"]
+        for i, hidden_size in enumerate(hidden_units):
+            layer = tf.contrib.layers.relu(layer, hidden_size)
+            layers.append(layer)
         
-        input_output_sum = (input_size+output_size)
-        hidden_layer_size = int(input_output_sum*0.5)
-        #hidden_layer_size = int(input_output_sum*0.75)
-        logger.info("Hidden layer size: %s" % hidden_layer_size)
-        hidden_layer = tf.contrib.layers.relu(model_info["input"], hidden_layer_size)
-        #hidden_layer_size = int(input_output_sum*0.5)
-        logger.info("Hidden layer size: %s" % hidden_layer_size)
-        hidden_layer = tf.contrib.layers.relu(hidden_layer, hidden_layer_size)
-        #hidden_layer_size = int(input_output_sum*0.25)
-        logger.info("Hidden layer size: %s" % hidden_layer_size)
-        hidden_layer = tf.contrib.layers.relu(hidden_layer, hidden_layer_size)
-        
-        #model_info["dropout_keep_prob"] = tf.placeholder(tf.float32)
-        #hidden_layer = tf.nn.dropout(hidden_layer, model_info["dropout_keep_prob"])
-        #hidden_layer = tf.contrib.layers.relu(hidden_layer, hidden_layer_size)
-        
-        model_info["predictions"] = tf.contrib.layers.fully_connected(hidden_layer,
+        model_info["predictions"] = tf.contrib.layers.fully_connected(layer,
                                                                       output_size,
-                                                                      activation_fn=None)
+                                                                      activation_fn=tf.sigmoid)
         model_info["loss"] = tf.reduce_sum(tf.square(model_info["predictions"] - model_info["y_truth"]))
         model_info["optimizer"] = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(model_info["loss"])
         return model_info
@@ -54,10 +46,16 @@ class WDVModel(AttalosModel):
         train_dataset = datasets[0]  # train_dataset should always be first in datasets iterable
         self.wv_transformer = WDV.create_from_vocab(wv_model, vocab1=self.one_hot.get_key_ordering(), preprocess_fn=WDV.preprocess)
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
+        self.hidden_units = kwargs.get("hidden_units", "200")
+        if self.hidden_units == '0':
+            self.hidden_units = []
+        else:
+            self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
         self.model_info = self._construct_model_info(
                 input_size = train_dataset.img_feat_size,
                 output_size = self.one_hot.vocab_size, #self.wv_model.get_word_vector_shape()[0], 
-                learning_rate = self.learning_rate
+                learning_rate = self.learning_rate,
+                hidden_units=self.hidden_units,
         )
         self.transform_cache = {}
         self.test_one_hot = None

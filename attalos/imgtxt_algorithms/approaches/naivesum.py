@@ -22,11 +22,6 @@ class NaiveSumModel(AttalosModel):
         model_info = {}
         model_info["input"] = tf.placeholder(shape=(None, input_size), dtype=tf.float32)
         model_info["y_truth"] = tf.placeholder(shape=(None, output_size), dtype=tf.float32)
-        
-        #hidden_layer = tf.contrib.layers.relu(model_info["input"], 1124)
-        #hidden_layer1 = tf.contrib.layers.relu(model_info["input"], 1686)
-        #hidden_layer2 = tf.contrib.layers.relu(hidden_layer1, 1124)
-        #hidden_layer3 = tf.contrib.layers.relu(hidden_layer2, 562)
 
         layers = []
         layer = model_info["input"]
@@ -50,10 +45,16 @@ class NaiveSumModel(AttalosModel):
         self.wv_transformer = NaiveW2V.create_from_vocab(wv_model, self.one_hot, vocab=self.one_hot.get_key_ordering())
         train_dataset = datasets[0] # train_dataset should always be first in datasets iterable
         self.learning_rate = kwargs.get("learning_rate", 0.0001)
+        self.hidden_units = kwargs.get("hidden_units", "200")
+        if self.hidden_units == '0':
+            self.hidden_units = []
+        else:
+            self.hidden_units = [int(x) for x in self.hidden_units.split(",")]
         self.model_info = self._construct_model_info(
                 input_size = train_dataset.img_feat_size,
                 output_size = self.wv_model.get_word_vector_shape()[0], 
-                learning_rate = self.learning_rate
+                learning_rate = self.learning_rate,
+                hidden_units=self.hidden_units,
         )
         self.test_one_hot = None
         super(NaiveSumModel, self).__init__()
