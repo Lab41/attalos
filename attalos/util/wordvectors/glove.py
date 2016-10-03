@@ -25,7 +25,7 @@ class GloveWrapper(WordVectorWrapper):
         w2v_lookup = {}
         if os.path.exists(word_vector_file):
             if word_vector_file.endswith('.gz'):
-                input_file = gzip.open(args.word_vector_file)
+                input_file = gzip.open(word_vector_file)
             else:
                 input_file = open(word_vector_file)
         else:
