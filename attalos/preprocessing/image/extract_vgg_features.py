@@ -8,50 +8,37 @@ import tempfile
 import subprocess
 import re
 
+
 import numpy as np
-from scipy.misc import imread, imresize
-import tensorflow as tf
 import h5py
 
+from keras.applications.vgg16 import VGG16
+from keras.preprocessing import image
+from keras.applications.vgg16 import preprocess_input
+from keras.models import Model
 
-def create_graph():
-  """Creates a graph from saved GraphDef file and returns a saver."""
-  # Creates graph from saved graph_def.pb.
-  with open('vgg16-20160129.tfmodel', mode='rb') as f:
-    graph_def = tf.GraphDef()
-    graph_def.ParseFromString(f.read())
-    _ = tf.import_graph_def(graph_def, name='')
 
-def load_image(path):
-  # load image
-  img = imread(path)
-  img = img / 255.0
-  assert (0 <= img).all() and (img <= 1.0).all()
-  #print "Original Image Shape: ", img.shape
-  # we crop image from center
-  short_edge = min(img.shape[:2])
-  yy = int((img.shape[0] - short_edge) / 2)
-  xx = int((img.shape[1] - short_edge) / 2)
-  crop_img = img[yy : yy + short_edge, xx : xx + short_edge]
-  # resize to 224, 224
-  resized_img = imresize(crop_img, (224, 224))
-  return resized_img
+
+def load_image(img_path):
+    data = image.load_img(img_path, target_size=(224, 224))
+    x = image.img_to_array(data)
+    x = np.expand_dims(x, axis=0)
+    x = preprocess_input(x)
+    return x
 
 def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
-  """Runs inference on an image.
-  Args:
+    """Runs inference on an image.
+    Args:
     dataset (DatasetPrep): Dataset
     tmp_dir (str): Directory to store images temporarily
-  Returns:
+    Returns:
     Nothing
-  """
-  # Creates graph from saved GraphDef.
-  create_graph()
-  image_keys = dataset.list_keys()
-  features = np.zeros((len(image_keys), 4096), dtype=np.float16)
-  config = tf.ConfigProto()
-  config.gpu_options.allow_growth = True
-  with tf.Session(config=config) as sess:
+    """
+    # Creates graph from saved GraphDef.
+    image_keys = dataset.list_keys()
+    features = np.zeros((len(image_keys), 4096), dtype=np.float16)
+    base_model = VGG16(weights='imagenet', include_top=True)
+    model = Model(input=base_model.input, output=base_model.get_layer('fc2').output)
     for ind, img_record in enumerate(dataset):
         if ind % 1000 == 0:
             print ('Completed %d of %d'%(ind, len(image_keys)))
@@ -61,7 +48,6 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
 
         try:
             image_data = load_image(new_fname)
-            image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
 
         except: # Not a jpeg, use file to find extension, try to read with scipy
             filetype = subprocess.Popen(["file", new_fname], stdout=subprocess.PIPE).stdout.read()
@@ -69,13 +55,10 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
             new_new_fname = new_fname + '.{}'.format(extension)
             print('Renaming to {}'.format(new_new_fname))
             shutil.move(new_fname, new_new_fname)
-            image = load_image(new_new_fname) #Image.open(new_fname)
-            image_data = np.array(image)[:, :, 0:3]  # Select RGB channels only.
+            image_data = load_image(new_new_fname)
+
         try:
-            image_data = image_data.reshape((1, 224, 224, 3))
-            pool_3_tensor = sess.graph.get_tensor_by_name('fc7/BiasAdd:0')
-            predictions = sess.run(pool_3_tensor,
-                                   {'images:0': image_data})
+            predictions = model.predict(image_data)
         except:
             print('Error on {}: Found dimensions {}'.format(img_record.image_name, image_data.shape))
             raise
