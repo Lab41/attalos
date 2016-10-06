@@ -12,9 +12,9 @@ import re
 import numpy as np
 import h5py
 
-from keras.applications.vgg16 import VGG16
+from keras.applications.resnet50 import ResNet50
 from keras.preprocessing import image
-from keras.applications.vgg16 import preprocess_input
+from keras.applications.resnet50 import preprocess_input
 from keras.models import Model
 
 
@@ -36,9 +36,9 @@ def run_inference_on_dataset(dataset, tmp_dir='/tmp/'):
     """
     # Creates graph from saved GraphDef.
     image_keys = dataset.list_keys()
-    features = np.zeros((len(image_keys), 4096), dtype=np.float16)
-    base_model = VGG16(weights='imagenet', include_top=True)
-    model = Model(input=base_model.input, output=base_model.get_layer('fc2').output)
+    features = np.zeros((len(image_keys), 2048), dtype=np.float16)
+    base_model = ResNet50(weights='imagenet', include_top=True)
+    model = Model(input=base_model.input, output=base_model.get_layer('flatten_1').output)
     for ind, img_record in enumerate(dataset):
         if ind % 1000 == 0:
             print ('Completed %d of %d'%(ind, len(image_keys)))
@@ -108,7 +108,7 @@ def process_dataset(dataset_prep, output_fname, working_dir=tempfile.gettempdir(
 def main():
   import argparse
 
-  parser = argparse.ArgumentParser(description='Extract image features using VGG model.')
+  parser = argparse.ArgumentParser(description='Extract image features using Resnet50 model.')
   parser.add_argument('--dataset_dir',
                       dest='dataset_dir',
                       type=str,
