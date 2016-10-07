@@ -29,14 +29,6 @@ make run
 # Documentation
 - [Docs](https://github.com/Lab41/attalos/tree/master/docs)
 
-# Tests
-
-Tests are currently written in py.test for Python.  The tests are automatically run when building the dockerfile.
-
-They can also be tested using:
-```
-make test
-```
 
 # Contributing to Attalos
 
