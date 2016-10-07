@@ -6,15 +6,15 @@ This project explores methods in constructing a common representation across mod
 
 To start downloading datasets, see [the Dataset README](attalos/dataset/README.md).
 
-To learn about running the performance metrics, see [the Evaluation README](attalos/dataset/README.md).
+To learn how to preprocess data, see [the Preprocessing READE](attalos/preprocessing/README.md).
 
-To learn how to run the demo app, see [the Demo README](attalos/imgtxt_algorithms/demo_app/README.md).
+To learn about running the performance metrics, see [the Evaluation README](attalos/dataset/README.md).
 
 To learn how to optimize wordvectors, see [the Update-words README](attalos/imgtxt_algorithms/updatewords/README.md).
 
-To learn about our utilities classes, see [the Util README](attalos/imgtxt_algorithms/util/README.md).
+To learn how to run the demo app, see [the Demo README](attalos/imgtxt_algorithms/demo_app/README.md).
 
-To learn how to pre-process MSCOCO, see [the MSCOCO READE](attalos/preprocessing/README.md).
+To learn about our utilities classes, see [the Util README](attalos/imgtxt_algorithms/util/README.md).
 
 
 # Install Instructions
