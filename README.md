@@ -30,12 +30,6 @@ make
 - Docker
 - make
 
-# Usage Examples
-
-```
-make run
-```
-
 # Documentation
 
 - [Docs](https://github.com/Lab41/attalos/tree/master/docs)
