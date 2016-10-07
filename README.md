@@ -30,11 +30,6 @@ make
 - Docker
 - make
 
-# Documentation
-
-- [Docs](https://github.com/Lab41/attalos/tree/master/docs)
-
-
 # Contributing to Attalos
 
 Want to contribute?  Awesome!  Issue a pull request or see more details [here](https://github.com/Lab41/attalos/blob/master/CONTRIBUTING.md).
