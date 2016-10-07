@@ -6,7 +6,7 @@ This project explores methods in constructing a common representation across mod
 
 To start downloading datasets, see [the Dataset README](attalos/dataset/README.md).
 
-To learn about running the performance metrics, see [the Evaluation README](attalos/attalos/dataset/README.md).
+To learn about running the performance metrics, see [the Evaluation README](attalos/dataset/README.md).
 
 To learn how to run the demo app, see [the Demo README](attalos/imgtxt_algorithms/demo_app/README.md).
 
