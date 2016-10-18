@@ -22,7 +22,8 @@ def construct_W(w2v_model, vocab, dtype=np.float64):
             valid_count += 1
             if valid_word is None:
                 valid_word = word
-    
+    if valid_word is None:
+        return np.zeros((w2v_model.get_word_vector_shape()[0], 1))
     word_vector_shape = w2v_model.get_vector(valid_word).shape[0]
     w = np.zeros((valid_count, word_vector_shape), dtype=dtype)
     
