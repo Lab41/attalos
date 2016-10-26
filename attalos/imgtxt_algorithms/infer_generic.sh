@@ -26,19 +26,19 @@ then
     mkdir "$basepath/features/text"
 fi
 
-#python2 attalos/preprocessing/text/extract_text_features.py \
-#       --dataset_dir "$dataset" \
-#       --output_fname "$basepath/features/text/"$fname"_train_"$datetime"_text.json.gz" \
-#       --dataset_type "generic" \
-#       --split "train"
+echo "Extracting training text features"
+python2 attalos/preprocessing/text/extract_text_features.py \
+       --dataset_dir "$dataset" \
+       --output_fname "$basepath/features/text/"$fname"_train_"$datetime"_text.json.gz" \
+       --dataset_type "generic" \
+       --split "train"
 
-#echo "Extracting training inception image features"
-#python2 attalos/preprocessing/image/extract_inception_features.py \
-#       --dataset_dir "$dataset" \
-#       --output_fname "$basepath/features/image/"$fname"_train_"$datetime"_inception.hdf5" \
-#       --dataset_type "generic" \
-#       --split "train"
-
+echo "Extracting training inception image features"
+python2 attalos/preprocessing/image/extract_inception_features.py \
+       --dataset_dir "$dataset" \
+       --output_fname "$basepath/features/image/"$fname"_train_"$datetime"_inception.hdf5" \
+       --dataset_type "generic" \
+       --split "train"
 
 echo "Infer data"
 PYTHONPATH=$PWD python2 attalos/imgtxt_algorithms/infer.py    \
