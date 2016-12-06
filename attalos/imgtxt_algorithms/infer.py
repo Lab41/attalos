@@ -42,8 +42,8 @@ def infer_dataset(args):
                 logger.error('Inference requires a saved model to be loaded')
                 raise ValueError('Inference requires a saved model')
 
-            num_batches = math.ceil(dataset.num_images/float(batch_size))
-            for batch_num in range(int(num_batches)):
+            num_batches = math.ceil(dataset.num_images/batch_size)
+            for batch_num in range(int(num_batches)+1):
                 logger.info('Batch {} of {}'.format(batch_num, num_batches))
                 start_index = batch_num*batch_size
                 stop_index = min((batch_num+1)*batch_size, dataset.num_images)
